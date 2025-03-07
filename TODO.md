@@ -1,0 +1,625 @@
+# Liquid-Snipe Project Todo List
+
+## Phase 1: Foundation Setup
+
+### Project Initialization
+- [x] Initialize TypeScript project
+  - [x] Create package.json with required dependencies (@solana/web3.js, sqlite3, blessed, etc.)
+  - [x] Configure TypeScript (tsconfig.json)
+  - [x] Set up Jest for testing
+  - [x] Configure ESLint and Prettier
+  - [x] Create .gitignore file
+- [x] Setup directory structure
+  - [x] src/config/ (configuration management)
+  - [x] src/db/ (database operations)
+  - [x] src/blockchain/ (Solana interaction)
+  - [x] src/trading/ (strategy and execution)
+  - [x] src/tui/ (user interface)
+  - [x] src/core/ (central controller)
+  - [x] src/utils/ (shared utilities)
+  - [x] src/types/ (shared interfaces)
+  - [x] tests/ (test files)
+- [x] Create basic entry point (src/index.ts)
+  - [x] Define main function and execution flow
+  - [x] Set up CLI argument parsing
+  - [x] Implement error handling
+  - [x] Add graceful shutdown
+- [x] Write initial tests to verify setup
+
+### Configuration Management
+- [x] Define configuration interfaces
+  - [x] RPC connection details
+  - [x] Supported DEXes configuration
+  - [x] Wallet settings (keypair path, risk percentage)
+  - [x] Trade parameters (min liquidity, slippage, amounts)
+  - [x] Exit strategy configurations
+  - [x] Database settings
+  - [x] Notification options
+- [x] Implement ConfigurationManager class
+  - [x] Default configuration loading
+  - [x] File-based configuration (YAML/JSON)
+  - [x] Command-line override handling
+  - [x] Configuration validation
+  - [x] Typed access methods
+- [x] Add command-line argument parsing
+  - [x] Custom config file path
+  - [x] Strategy selection
+  - [x] Trade amount override
+  - [x] Risk percentage adjustment
+  - [x] DEX enablement/disablement
+  - [x] Monitoring mode (dry-run)
+  - [x] Logging options
+  - [x] Database options
+  - [x] Export/validate config commands
+- [x] Write comprehensive tests
+  - [x] Test loading from defaults
+  - [x] Test merging from different sources
+  - [x] Test validation logic
+  - [x] Test command-line overrides
+  - [x] Test DEX management
+  - [x] Test exit strategy retrieval
+
+### Database Foundation
+- [ ] Implement DatabaseManager class
+  - [ ] SQLite connection management
+  - [ ] Schema creation
+  - [ ] Database migrations
+  - [ ] Connection error handling
+- [ ] Create database schema
+  - [ ] tokens table
+  - [ ] liquidity_pools table
+  - [ ] trades table
+  - [ ] positions table
+  - [ ] events table
+- [ ] Define data models and interfaces
+  - [ ] Token interface and class
+  - [ ] LiquidityPool interface and class
+  - [ ] Trade interface and class
+  - [ ] Position interface and class
+  - [ ] Event interface and class
+- [ ] Implement CRUD operations
+  - [ ] Token operations (add/update/get)
+  - [ ] Liquidity pool operations (add/update/get)
+  - [ ] Trade operations (add/get)
+  - [ ] Position operations (add/update/get)
+  - [ ] Event operations (add/query)
+- [ ] Write database tests
+  - [ ] Test database initialization
+  - [ ] Test CRUD operations
+  - [ ] Test error handling
+  - [ ] Test concurrent operations
+
+### Event Communication System
+- [ ] Create typed event system
+  - [ ] Define event type interfaces
+  - [ ] Type-safe event payload definitions
+  - [ ] Event subscription mechanism
+  - [ ] Error handling for event processing
+- [ ] Implement core event types
+  - [ ] NewPoolEvent
+  - [ ] TradeRecommendationEvent
+  - [ ] TradeExecutionEvent
+  - [ ] PositionUpdateEvent
+  - [ ] SystemLogEvent
+- [ ] Create EventManager class
+  - [ ] Subscription management
+  - [ ] Event distribution
+  - [ ] Event emission methods
+  - [ ] Logging integration
+- [ ] Implement event logging
+  - [ ] Database recording
+  - [ ] Filtering capabilities
+  - [ ] Asynchronous logging
+- [ ] Write event system tests
+  - [ ] Test event emission and reception
+  - [ ] Test type safety
+  - [ ] Test event handler execution
+  - [ ] Test error handling
+
+## Phase 2: Blockchain Integration
+
+### Solana Connection Management
+- [ ] Create ConnectionManager class
+  - [ ] HTTP and WebSocket connection setup
+  - [ ] Configuration handling
+  - [ ] Health monitoring
+  - [ ] Reconnection logic
+- [ ] Implement core connection features
+  - [ ] Configurable endpoint management
+  - [ ] Health check system
+  - [ ] Automatic reconnection with backoff
+  - [ ] Connection pooling
+  - [ ] Connection metrics
+- [ ] Create Solana operation utilities
+  - [ ] Account information retrieval
+  - [ ] Transaction fetching
+  - [ ] Transaction submission
+  - [ ] Subscription methods
+- [ ] Add error handling
+  - [ ] Connection failure recovery
+  - [ ] RPC timeout handling
+  - [ ] Rate limit management
+  - [ ] Response validation
+- [ ] Write connection tests
+  - [ ] Test connection establishment
+  - [ ] Test reconnection logic
+  - [ ] Test with mocked RPC responses
+  - [ ] Test error handling
+
+### DEX Monitoring
+- [ ] Create BlockchainWatcher class
+  - [ ] Connect with ConnectionManager
+  - [ ] Program log subscription
+  - [ ] Instruction filtering
+  - [ ] Pool creation detection
+  - [ ] Event emission
+- [ ] Implement core monitoring features
+  - [ ] Log subscription setup
+  - [ ] DEX instruction detection
+  - [ ] Transaction fetching
+  - [ ] Pool creation parsing
+  - [ ] Token pair identification
+- [ ] Create DEX-specific parsers
+  - [ ] Raydium parser implementation
+  - [ ] Pool address extraction
+  - [ ] Token identification
+  - [ ] Initial liquidity calculation
+  - [ ] Data standardization
+- [ ] Implement subscription management
+  - [ ] Pause/resume functionality
+  - [ ] Clean shutdown
+  - [ ] Reconnection handling
+  - [ ] Throttling system
+- [ ] Write monitoring tests
+  - [ ] Test log filtering
+  - [ ] Test transaction parsing
+  - [ ] Test with mock RPC data
+  - [ ] Test event emission
+
+### Token Information Service
+- [ ] Create TokenInfoService class
+  - [ ] On-chain metadata fetching
+  - [ ] Supply information retrieval
+  - [ ] Holder analysis
+  - [ ] Risk metrics calculation
+  - [ ] Caching system
+- [ ] Implement core token analysis
+  - [ ] Metadata extraction (symbol, name, decimals)
+  - [ ] Supply analysis
+  - [ ] Holder distribution analysis
+  - [ ] Liquidity assessment
+  - [ ] Risk scoring
+- [ ] Create token utility methods
+  - [ ] New token identification
+  - [ ] Token type classification
+  - [ ] Age estimation
+  - [ ] Program verification checking
+- [ ] Add caching system
+  - [ ] In-memory cache
+  - [ ] Database persistence
+  - [ ] Cache expiration
+  - [ ] Refresh scheduling
+- [ ] Write token service tests
+  - [ ] Test metadata retrieval
+  - [ ] Test risk scoring
+  - [ ] Test caching behavior
+  - [ ] Test error handling
+
+## Phase 3: Trading Logic
+
+### Strategy Engine Core
+- [ ] Create StrategyEngine class
+  - [ ] Pool event processing
+  - [ ] Token information gathering
+  - [ ] Filter application
+  - [ ] Opportunity evaluation
+  - [ ] Trade recommendation generation
+- [ ] Implement core strategies
+  - [ ] Liquidity threshold filtering
+  - [ ] Token evaluation
+  - [ ] Risk assessment
+  - [ ] Position sizing
+  - [ ] Entry price determination
+- [ ] Create strategy interfaces/classes
+  - [ ] TradeStrategy interface
+  - [ ] BaseStrategy abstract class
+  - [ ] Strategy implementations
+  - [ ] Strategy composition
+- [ ] Add configuration options
+  - [ ] Liquidity thresholds
+  - [ ] Risk limits
+  - [ ] Token preferences
+  - [ ] Position sizing rules
+  - [ ] Strategy weighting
+- [ ] Write strategy tests
+  - [ ] Test strategy selection
+  - [ ] Test evaluation logic
+  - [ ] Test trade recommendation
+  - [ ] Test risk calculation
+
+### Trade Planning and Execution
+- [ ] Create TradeExecutor class
+  - [ ] Trade recommendation handling
+  - [ ] Transaction preparation
+  - [ ] Transaction signing
+  - [ ] Transaction submission
+  - [ ] Result recording
+- [ ] Implement trading functionality
+  - [ ] Wallet management
+  - [ ] Swap transaction construction
+  - [ ] Slippage protection
+  - [ ] Fee management
+  - [ ] Confirmation monitoring
+- [ ] Create trading utilities
+  - [ ] Swap route optimization
+  - [ ] Gas price estimation
+  - [ ] Price impact calculation
+  - [ ] Transaction verification
+  - [ ] Result extraction
+- [ ] Add safety measures
+  - [ ] Retry handling
+  - [ ] Circuit breakers
+  - [ ] Balance verification
+  - [ ] Transaction simulation
+  - [ ] Slippage limits
+- [ ] Write trading tests
+  - [ ] Test transaction construction
+  - [ ] Test signing and submission
+  - [ ] Test error scenarios
+  - [ ] Test result recording
+
+### Position Management
+- [ ] Create PositionManager class
+  - [ ] Position tracking
+  - [ ] Value monitoring
+  - [ ] Exit condition evaluation
+  - [ ] Exit execution
+  - [ ] Record keeping
+- [ ] Implement exit strategies
+  - [ ] Time-based exit
+  - [ ] Profit-based exit
+  - [ ] Loss-based exit (stop loss)
+  - [ ] Liquidity-based exit
+  - [ ] Developer activity monitoring
+  - [ ] Combined strategies
+- [ ] Create strategy interfaces/classes
+  - [ ] ExitStrategy interface
+  - [ ] BaseExitStrategy abstract class
+  - [ ] Strategy-specific implementations
+  - [ ] Strategy configuration
+- [ ] Add position tracking
+  - [ ] Value calculation
+  - [ ] P&L tracking
+  - [ ] Transaction recording
+  - [ ] Position history
+  - [ ] Portfolio statistics
+- [ ] Write position tests
+  - [ ] Test exit condition evaluation
+  - [ ] Test position tracking
+  - [ ] Test exit execution
+  - [ ] Test record keeping
+
+## Phase 4: User Interface
+
+### TUI Framework
+- [ ] Create TuiController class
+  - [ ] Blessed screen initialization
+  - [ ] Layout setup
+  - [ ] Rendering management
+  - [ ] Resize handling
+  - [ ] Component registry
+- [ ] Implement core layout
+  - [ ] Header component
+  - [ ] Navigation area
+  - [ ] Content area with tabs
+  - [ ] Footer with key bindings
+  - [ ] Modal dialog system
+- [ ] Create component system
+  - [ ] BaseComponent class
+  - [ ] Component registration
+  - [ ] Focus management
+  - [ ] Event routing
+  - [ ] Lifecycle hooks
+- [ ] Add UI utilities
+  - [ ] Color schemes
+  - [ ] Theming support
+  - [ ] Layout helpers
+  - [ ] Text formatting
+  - [ ] Animation system
+- [ ] Write TUI tests
+  - [ ] Test component rendering
+  - [ ] Test event handling
+  - [ ] Test layout management
+  - [ ] Test performance
+
+### Data Visualization Components
+- [ ] Create table components
+  - [ ] PoolsTable implementation
+  - [ ] PositionsTable implementation
+  - [ ] TradesTable implementation
+  - [ ] EventsTable implementation
+- [ ] Implement display features
+  - [ ] Sorting capability
+  - [ ] Filtering options
+  - [ ] Pagination system
+  - [ ] Highlighting rules
+  - [ ] Animated updates
+- [ ] Create status components
+  - [ ] WalletInfo panel
+  - [ ] ConnectionStatus indicator
+  - [ ] SystemStatus display
+  - [ ] PerformanceMetrics view
+- [ ] Add charting
+  - [ ] ASCII price charts
+  - [ ] Portfolio value tracking
+  - [ ] Success rate display
+  - [ ] Performance comparison
+- [ ] Write visualization tests
+  - [ ] Test rendering accuracy
+  - [ ] Test update behavior
+  - [ ] Test filtering/sorting
+  - [ ] Test pagination
+
+### Interactive Controls
+- [ ] Create interactive components
+  - [ ] CommandInput implementation
+  - [ ] KeyBindings system
+  - [ ] ContextMenu implementation
+  - [ ] ConfirmationDialog system
+  - [ ] HelpPanel display
+- [ ] Implement command types
+  - [ ] System commands
+  - [ ] Trading commands
+  - [ ] Configuration commands
+  - [ ] Data commands
+  - [ ] Help/info commands
+- [ ] Create command parser
+  - [ ] Syntax processing
+  - [ ] Parameter validation
+  - [ ] Command routing
+  - [ ] Feedback system
+  - [ ] History tracking
+- [ ] Add interaction features
+  - [ ] Tab completion
+  - [ ] Context help
+  - [ ] Error handling
+  - [ ] History navigation
+  - [ ] Shortcut display
+- [ ] Write interaction tests
+  - [ ] Test command parsing
+  - [ ] Test command execution
+  - [ ] Test error handling
+  - [ ] Test keyboard shortcuts
+
+## Phase 5: Integration
+
+### Core Controller Implementation
+- [ ] Create CoreController class
+  - [ ] Component initialization
+  - [ ] Lifecycle management
+  - [ ] Event routing
+  - [ ] Error handling
+  - [ ] Resource access
+  - [ ] Shutdown procedures
+- [ ] Implement lifecycle stages
+  - [ ] Configuration loading
+  - [ ] Database setup
+  - [ ] Connection establishment
+  - [ ] Component initialization
+  - [ ] Monitoring start/stop
+  - [ ] Graceful shutdown
+- [ ] Create coordination mechanisms
+  - [ ] Inter-component event routing
+  - [ ] Resource sharing
+  - [ ] State synchronization
+  - [ ] Command dispatching
+  - [ ] Error propagation
+- [ ] Add system management
+  - [ ] Component health checking
+  - [ ] Performance monitoring
+  - [ ] Resource tracking
+  - [ ] Automatic recovery
+  - [ ] State persistence
+- [ ] Write controller tests
+  - [ ] Test initialization
+  - [ ] Test component coordination
+  - [ ] Test error handling
+  - [ ] Test shutdown
+
+### Workflow Integration
+- [ ] Implement core workflows
+  - [ ] Pool detection → trade execution
+  - [ ] Position monitoring → exit execution
+  - [ ] User command → system action
+  - [ ] Configuration → system update
+  - [ ] Error → recovery procedure
+- [ ] Create workflow coordinators
+  - [ ] Trading workflow
+  - [ ] Position management workflow
+  - [ ] User interaction workflow
+  - [ ] Data management workflow
+- [ ] Implement state machines
+  - [ ] Trading process states
+  - [ ] Position lifecycle
+  - [ ] System operational modes
+  - [ ] Recovery procedures
+- [ ] Add integration points
+  - [ ] Event-based triggers
+  - [ ] Direct method calls
+  - [ ] Callback chains
+  - [ ] Promise sequencing
+- [ ] Write workflow tests
+  - [ ] Test end-to-end flows
+  - [ ] Test state transitions
+  - [ ] Test component interaction
+  - [ ] Test error recovery
+
+### Error Handling and Recovery
+- [ ] Create error handling system
+  - [ ] Error capture mechanism
+  - [ ] Error categorization
+  - [ ] Handler routing
+  - [ ] Severity levels
+  - [ ] Context enrichment
+- [ ] Implement recovery mechanisms
+  - [ ] Component-specific recovery
+  - [ ] Network reconnection
+  - [ ] Transaction retry logic
+  - [ ] Database integrity checks
+  - [ ] State reconstruction
+- [ ] Create circuit breakers
+  - [ ] Transaction failure limits
+  - [ ] RPC endpoint failures
+  - [ ] Loss thresholds
+  - [ ] Resource limits
+  - [ ] Behavior monitoring
+- [ ] Add notification system
+  - [ ] Critical error alerts
+  - [ ] Recovery status updates
+  - [ ] Progress indicators
+  - [ ] Success confirmations
+  - [ ] Debug information
+- [ ] Write error handling tests
+  - [ ] Test error capturing
+  - [ ] Test recovery procedures
+  - [ ] Test circuit breakers
+  - [ ] Test notifications
+
+## Phase 6: Advanced Features
+
+### Advanced Exit Strategies
+- [ ] Create advanced strategies
+  - [ ] Multi-condition strategy
+  - [ ] Trailing stop loss
+  - [ ] Volatility-based stops
+  - [ ] Volume-based exits
+  - [ ] Sentiment analysis
+  - [ ] Creator monitoring
+- [ ] Implement strategy configuration
+  - [ ] Parameter adjustment
+  - [ ] Historical testing
+  - [ ] Performance comparison
+  - [ ] Dynamic selection
+  - [ ] Parameter optimization
+- [ ] Create analysis utilities
+  - [ ] Trend detection
+  - [ ] Volume analysis
+  - [ ] Liquidity evaluation
+  - [ ] Whale monitoring
+  - [ ] Sentiment integration
+- [ ] Add execution features
+  - [ ] Partial exits
+  - [ ] Staged exit planning
+  - [ ] Timing optimization
+  - [ ] Fee awareness
+  - [ ] Slippage minimization
+- [ ] Write strategy tests
+  - [ ] Test selection logic
+  - [ ] Test condition evaluation
+  - [ ] Test execution calculation
+  - [ ] Test performance metrics
+
+### Multi-DEX Support
+- [ ] Create DEX integration system
+  - [ ] DEX interface
+  - [ ] DEX implementations
+  - [ ] Automatic detection
+  - [ ] Priority configuration
+  - [ ] Arbitrage detection
+- [ ] Implement additional DEXes
+  - [ ] Orca support
+  - [ ] Jupiter aggregator integration
+  - [ ] Serum support
+  - [ ] Meteora support
+  - [ ] Other DEX integrations
+- [ ] Create DEX-specific components
+  - [ ] Instruction parsing
+  - [ ] Address derivation
+  - [ ] Liquidity calculation
+  - [ ] Impact estimation
+  - [ ] Transaction building
+- [ ] Add cross-DEX features
+  - [ ] Best price routing
+  - [ ] Liquidity aggregation
+  - [ ] Fee comparison
+  - [ ] Slippage optimization
+  - [ ] Failure fallback
+- [ ] Write DEX support tests
+  - [ ] Test DEX-specific parsing
+  - [ ] Test cross-DEX operations
+  - [ ] Test route selection
+  - [ ] Test transaction building
+
+### Analytics and Reporting
+- [ ] Create analytics engine
+  - [ ] Performance calculations
+  - [ ] Statistics tracking
+  - [ ] Strategy analysis
+  - [ ] Opportunity identification
+  - [ ] Report generation
+- [ ] Implement analytics components
+  - [ ] Performance dashboard
+  - [ ] Trade history analysis
+  - [ ] Strategy comparison
+  - [ ] Token metrics
+  - [ ] Risk/reward analysis
+- [ ] Create reporting features
+  - [ ] Data export
+  - [ ] Scheduled reports
+  - [ ] Notification integration
+  - [ ] Report configuration
+  - [ ] Data exploration
+- [ ] Add visualization
+  - [ ] Performance charts
+  - [ ] Strategy comparison
+  - [ ] Success rate display
+  - [ ] Risk/reward plotting
+  - [ ] Profit distribution
+- [ ] Write analytics tests
+  - [ ] Test metric calculations
+  - [ ] Test report generation
+  - [ ] Test export functionality
+  - [ ] Test visualization accuracy
+
+## Documentation and Maintenance
+
+### Documentation
+- [ ] Create README.md
+  - [ ] Project overview
+  - [ ] Installation instructions
+  - [ ] Configuration guide
+  - [ ] Usage examples
+  - [ ] Feature list
+- [ ] Add inline code documentation
+  - [ ] JSDoc for all classes and methods
+  - [ ] Type definitions
+  - [ ] Example usage
+  - [ ] Warning for risky operations
+- [ ] Create architecture documentation
+  - [ ] Component diagrams
+  - [ ] Workflow descriptions
+  - [ ] Database schema
+  - [ ] API documentation
+- [ ] Write user guide
+  - [ ] Installation steps
+  - [ ] Configuration options
+  - [ ] Command reference
+  - [ ] Trading strategies
+  - [ ] TUI usage
+
+### Project Management
+- [ ] Setup CI/CD pipeline
+  - [ ] Automated testing
+  - [ ] Linting and formatting
+  - [ ] Build process
+  - [ ] Release packaging
+- [ ] Create release management
+  - [ ] Version numbering
+  - [ ] Changelog maintenance
+  - [ ] Release notes
+  - [ ] Distribution packaging
+- [ ] Setup development environment
+  - [ ] Development configuration
+  - [ ] Test fixtures
+  - [ ] Mock services
+  - [ ] Local testing tools

@@ -1,0 +1,103 @@
+rpc:
+  httpUrl: https://api.mainnet-beta.solana.com
+  wsUrl: wss://api.mainnet-beta.solana.com
+  connectionTimeout: 30000
+  commitment: confirmed
+  reconnectPolicy:
+    maxRetries: 5
+    baseDelay: 1000
+    maxDelay: 60000
+supportedDexes:
+  - name: Raydium
+    programId: 675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8
+    instructions:
+      newPoolCreation: initialize2
+      swap: swap
+      addLiquidity: addLiquidity
+      removeLiquidity: removeLiquidity
+    enabled: true
+    priority: 1
+  - name: Orca
+    programId: 9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP
+    instructions:
+      newPoolCreation: createPool
+      swap: swap
+    enabled: false
+    priority: 2
+wallet:
+  keypairPath: ./keys/trading-wallet.json
+  riskPercent: 5
+  maxTotalRiskPercent: 20
+  confirmationRequired: false
+  excludedTokens: []
+tradeConfig:
+  minLiquidityUsd: 1000
+  maxSlippagePercent: 2
+  gasLimit: 0.01
+  defaultTradeAmountUsd: 100
+  maxTradeAmountUsd: 1000
+  minTokenPrice: 0.000001
+  maxTokenSupply: 1000000000000
+  maxHoldingTimeMinutes: 1440
+  requiredBaseTokens:
+    - So11111111111111111111111111111111111111112
+    - EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+  minPoolAgeSeconds: 5
+exitStrategies:
+  - type: profit
+    name: Default Profit Strategy
+    description: Exit when profit reaches target percentage
+    enabled: true
+    params:
+      profitPercentage: 50
+      trailingStopPercent: 5
+  - type: time
+    name: Time-based Exit
+    description: Exit after specified time has passed
+    enabled: true
+    params:
+      timeMinutes: 60
+  - type: loss
+    name: Stop Loss
+    description: Exit if loss reaches specified percentage
+    enabled: true
+    params:
+      lossPercentage: 20
+  - type: liquidity
+    name: Liquidity Protection
+    description: Exit if liquidity drops below threshold
+    enabled: true
+    params:
+      minLiquidityUsd: 500
+      percentOfInitial: 50
+  - type: developer-activity
+    name: Dev Wallet Monitor
+    description: Exit if developer sells tokens
+    enabled: true
+    params:
+      monitorDeveloperWallet: true
+      exitOnSellPercentage: 10
+database:
+  path: ./data/liquid-snipe.db
+  backupIntervalHours: 24
+  maxBackups: 7
+  logToDatabase: true
+  pruneEventsOlderThanDays: 30
+notifications:
+  enabled: false
+  telegram:
+    enabled: false
+    notifyOnTrade: true
+    notifyOnPosition: true
+    notifyOnError: true
+  discord:
+    enabled: false
+    notifyOnTrade: true
+    notifyOnPosition: true
+    notifyOnError: true
+activeStrategy: default
+logLevel: info
+pollingInterval: 1000
+dryRun: false
+verbose: false
+disableTui: false

@@ -1,45 +1,53 @@
-import { EventEmitter as NodeEventEmitter } from 'events';
-import { LogEvent, NewPoolEvent, TradeDecision, TradeResult } from '../types';
+/**
+ * @deprecated Use the EventManager from the events module instead.
+ * This file is kept for backwards compatibility only.
+ */
 
-// Define the event map to ensure type safety
-interface EventMap {
-  newPool: NewPoolEvent;
-  tradeDecision: TradeDecision;
-  tradeResult: TradeResult;
-  log: LogEvent;
-}
+import { EventManager } from '../events/event-manager';
+import { EventMap, EventName, EventHandler } from '../events/types';
 
+/**
+ * Legacy EventEmitter class that now just wraps the newer EventManager.
+ * This is maintained for backwards compatibility.
+ * 
+ * @deprecated Use the EventManager from the events module instead.
+ */
 export class EventEmitter {
-  private emitter: NodeEventEmitter;
+  private eventManager: EventManager;
 
   constructor() {
-    this.emitter = new NodeEventEmitter();
-    // Set a higher limit for listeners
-    this.emitter.setMaxListeners(30);
+    // Create a new event manager
+    this.eventManager = new EventManager();
+    
+    // Print a deprecation warning
+    console.warn(`
+      ⚠️ The EventEmitter class is deprecated and will be removed in a future version.
+      Please use the EventManager from the events module instead.
+    `);
   }
 
-  public on<K extends keyof EventMap>(event: K, listener: (data: EventMap[K]) => void): () => void {
-    this.emitter.on(event, listener);
-    return () => this.emitter.off(event, listener);
+  public on<K extends EventName>(event: K, listener: EventHandler<K>): () => void {
+    return this.eventManager.on(event, listener);
   }
 
-  public once<K extends keyof EventMap>(event: K, listener: (data: EventMap[K]) => void): void {
-    this.emitter.once(event, listener);
+  public once<K extends EventName>(event: K, listener: EventHandler<K>): void {
+    this.eventManager.once(event, listener);
   }
 
-  public off<K extends keyof EventMap>(event: K, listener: (data: EventMap[K]) => void): void {
-    this.emitter.off(event, listener);
+  public off<K extends EventName>(event: K, listener: EventHandler<K>): void {
+    this.eventManager.off(event, listener);
   }
 
-  public emit<K extends keyof EventMap>(event: K, data: EventMap[K]): boolean {
-    return this.emitter.emit(event, data);
+  public emit<K extends EventName>(event: K, data: EventMap[K]): boolean {
+    return this.eventManager.emit(event, data);
   }
 
-  public removeAllListeners<K extends keyof EventMap>(event?: K): void {
-    this.emitter.removeAllListeners(event);
+  public removeAllListeners(event?: EventName): void {
+    this.eventManager.removeAllListeners(event);
   }
 }
 
-// Export a singleton instance for common use
-export const eventEmitter = new EventEmitter();
+// Export the main EventManager as the default instance
+import { eventManager } from '../events/event-manager';
+export const eventEmitter = eventManager;
 export default eventEmitter;

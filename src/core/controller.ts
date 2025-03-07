@@ -12,7 +12,7 @@ export class CoreController {
 
   constructor(config: AppConfig) {
     this.config = config;
-    this.logger = new Logger('CoreController', config.verbose);
+    this.logger = new Logger('CoreController', { verbose: config.verbose });
     this.eventEmitter = new EventEmitter();
     this.dbManager = new DatabaseManager(config.database.path);
   }

@@ -38,7 +38,7 @@ export class DatabaseManager {
     logToDatabase?: boolean;
   } = {}) {
     this.dbPath = dbPath;
-    this.logger = new Logger('DatabaseManager', options.verbose || false);
+    this.logger = new Logger('DatabaseManager', { verbose: options.verbose || false });
     
     // Ensure the directory exists
     const dbDir = path.dirname(dbPath);
@@ -1390,6 +1390,5 @@ export class DatabaseManager {
 // Export model classes
 export * from './models';
 
-// Export database manager and errors
-export { DatabaseManager, DatabaseError, MigrationError };
+// Export database manager 
 export default DatabaseManager;

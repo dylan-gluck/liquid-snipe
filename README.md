@@ -20,6 +20,7 @@ This project is under active development. Currently implemented:
 - ✅ Flexible exit strategy framework
 - ✅ Multi-DEX support infrastructure
 - ✅ Database schema and operations
+- ✅ Event Communication System with typed events
 - ⏳ Blockchain monitoring (in progress)
 - ⏳ Trading logic (in progress)
 - ⏳ User interface (in progress)
@@ -59,10 +60,14 @@ npm start -- validate-config my-config.yaml
 
 ### Using environment variables
 
-Copy the example environment file and modify it:
+Environment variables can be used to override configuration settings:
 
 ```bash
-cp .env.example .env
+# Example: Set RPC endpoint via environment variable
+export LIQUID_SNIPE_RPC_ENDPOINT="https://my-rpc.example.com"
+
+# Run with environment variable settings
+npm start
 ```
 
 ### Using command-line arguments

@@ -60,34 +60,34 @@
   - [x] Test exit strategy retrieval
 
 ### Database Foundation
-- [ ] Implement DatabaseManager class
-  - [ ] SQLite connection management
-  - [ ] Schema creation
-  - [ ] Database migrations
-  - [ ] Connection error handling
-- [ ] Create database schema
-  - [ ] tokens table
-  - [ ] liquidity_pools table
-  - [ ] trades table
-  - [ ] positions table
-  - [ ] events table
-- [ ] Define data models and interfaces
-  - [ ] Token interface and class
-  - [ ] LiquidityPool interface and class
-  - [ ] Trade interface and class
-  - [ ] Position interface and class
-  - [ ] Event interface and class
-- [ ] Implement CRUD operations
-  - [ ] Token operations (add/update/get)
-  - [ ] Liquidity pool operations (add/update/get)
-  - [ ] Trade operations (add/get)
-  - [ ] Position operations (add/update/get)
-  - [ ] Event operations (add/query)
-- [ ] Write database tests
-  - [ ] Test database initialization
-  - [ ] Test CRUD operations
-  - [ ] Test error handling
-  - [ ] Test concurrent operations
+- [x] Implement DatabaseManager class
+  - [x] SQLite connection management
+  - [x] Schema creation
+  - [x] Database migrations
+  - [x] Connection error handling
+- [x] Create database schema
+  - [x] tokens table
+  - [x] liquidity_pools table
+  - [x] trades table
+  - [x] positions table
+  - [x] events table
+- [x] Define data models and interfaces
+  - [x] Token interface and class
+  - [x] LiquidityPool interface and class
+  - [x] Trade interface and class
+  - [x] Position interface and class
+  - [x] Event interface and class
+- [x] Implement CRUD operations
+  - [x] Token operations (add/update/get)
+  - [x] Liquidity pool operations (add/update/get)
+  - [x] Trade operations (add/get)
+  - [x] Position operations (add/update/get)
+  - [x] Event operations (add/query)
+- [x] Write database tests
+  - [x] Test database initialization
+  - [x] Test CRUD operations
+  - [x] Test error handling
+  - [x] Test concurrent operations
 
 ### Event Communication System
 - [ ] Create typed event system

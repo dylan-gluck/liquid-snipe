@@ -29,10 +29,11 @@ export interface PositionUpdateEvent {
  * SystemStatusEvent is emitted when the system status changes
  */
 export interface SystemStatusEvent {
-  status: 'STARTING' | 'READY' | 'PAUSED' | 'ERROR' | 'SHUTDOWN';
+  status: 'STARTING' | 'READY' | 'PAUSED' | 'ERROR' | 'SHUTDOWN' | 'CRITICAL_ERROR';
   reason?: string;
   timestamp: number;
   details?: Record<string, any>;
+  data?: Record<string, any>;
 }
 
 /**
@@ -90,12 +91,28 @@ export interface WalletUpdateEvent {
  * NotificationEvent is emitted when a notification should be sent
  */
 export interface NotificationEvent {
+  id: string;
   level: 'info' | 'warning' | 'error' | 'success';
   title: string;
   message: string;
   timestamp: number;
+  urgent?: boolean;
   data?: Record<string, any>;
   channels?: ('console' | 'telegram' | 'discord' | 'email')[];
+}
+
+/**
+ * ErrorEvent is emitted when an error occurs that needs handling
+ */
+export interface ErrorEventData {
+  error: Error;
+  context: string;
+  category: {
+    category: 'CONNECTION' | 'DATABASE' | 'TRADING' | 'SYSTEM' | 'USER_INPUT';
+    severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    recoverable: boolean;
+  };
+  metadata?: Record<string, any>;
 }
 
 /**
@@ -117,6 +134,7 @@ export interface EventMap {
   liquidityUpdate: LiquidityUpdateEvent;
   walletUpdate: WalletUpdateEvent;
   notification: NotificationEvent;
+  error: ErrorEventData;
 }
 
 /**

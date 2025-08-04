@@ -2,6 +2,9 @@ import { Logger } from '../../utils/logger';
 import { EventManager } from '../../events/event-manager';
 import { ConnectionManager } from '../../blockchain/connection-manager';
 import DatabaseManager from '../../db';
+import { ErrorHandler, ErrorContext } from '../error-handler';
+import { CircuitBreakerRegistry, CircuitBreakerState } from '../circuit-breaker';
+import { NotificationSystem } from '../notification-system';
 
 export interface ErrorCategory {
   category: 'CONNECTION' | 'DATABASE' | 'TRADING' | 'SYSTEM' | 'USER_INPUT';
@@ -42,6 +45,9 @@ export class ErrorRecoveryWorkflowCoordinator {
   };
   
   private recoveryStrategies = new Map<string, RecoveryAction[]>();
+  private errorHandler: ErrorHandler;
+  private circuitBreakerRegistry: CircuitBreakerRegistry;
+  private notificationSystem: NotificationSystem;
 
   constructor(
     private eventManager: EventManager,
@@ -49,8 +55,21 @@ export class ErrorRecoveryWorkflowCoordinator {
     private dbManager: DatabaseManager
   ) {
     this.logger = new Logger('ErrorRecoveryWorkflow');
+    
+    // Initialize new error handling components
+    this.errorHandler = new ErrorHandler(eventManager, {
+      maxRetries: 3,
+      retryDelay: 1000,
+      enableNotifications: true,
+      enableMetrics: true
+    });
+    
+    this.circuitBreakerRegistry = new CircuitBreakerRegistry();
+    this.notificationSystem = new NotificationSystem(eventManager);
+    
     this.setupRecoveryStrategies();
     this.setupEventHandlers();
+    this.setupCircuitBreakers();
   }
 
   private setupRecoveryStrategies(): void {
@@ -117,8 +136,27 @@ export class ErrorRecoveryWorkflowCoordinator {
   }
 
   private async handleError(errorData: any): Promise<void> {
+    // Use the new ErrorHandler for comprehensive error processing
+    const context: ErrorContext = {
+      component: this.extractComponentFromContext(errorData.context || 'Unknown'),
+      operation: errorData.operation || 'unknown',
+      metadata: errorData.metadata
+    };
+
+    const enrichedError = this.errorHandler.captureError(
+      errorData.error,
+      context,
+      errorData.category ? {
+        level: errorData.category.severity,
+        requiresImmedateAction: errorData.category.severity === 'CRITICAL',
+        affectsTrading: context.component.includes('Trade') || context.component.includes('Position'),
+        affectsSystemStability: context.component.includes('Connection') || context.component.includes('Database')
+      } : undefined
+    );
+
+    // Legacy error event for backward compatibility
     const errorEvent: ErrorEvent = {
-      id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: enrichedError.id,
       error: errorData.error,
       context: errorData.context || 'Unknown',
       timestamp: Date.now(),
@@ -132,21 +170,25 @@ export class ErrorRecoveryWorkflowCoordinator {
     // Add to active errors
     this.workflowState.activeErrors.set(errorEvent.id, errorEvent);
 
-    // Check circuit breakers
-    if (this.shouldTriggerCircuitBreaker(errorEvent)) {
-      await this.triggerCircuitBreaker(errorEvent.category.category);
+    // Check circuit breakers using the new registry
+    const circuitBreaker = this.circuitBreakerRegistry.get(context.component);
+    if (circuitBreaker && circuitBreaker.getState() === CircuitBreakerState.OPEN) {
+      this.logger.warning(`Circuit breaker ${context.component} is OPEN - skipping recovery attempt`);
       return;
     }
 
-    // Attempt recovery if the error is recoverable
-    if (errorEvent.category.recoverable) {
+    // Let the new error handler manage the recovery process
+    const recoverySuccessful = await this.errorHandler.handleError(enrichedError);
+    
+    if (recoverySuccessful) {
+      this.workflowState.activeErrors.delete(errorEvent.id);
+    }
+
+    // Fallback to legacy recovery if new system didn't handle it
+    if (!recoverySuccessful && errorEvent.category.recoverable) {
       await this.attemptRecovery(errorEvent);
-    } else {
-      this.logger.error(`Non-recoverable error detected: ${errorEvent.error.message}`);
-      
-      if (errorEvent.category.severity === 'CRITICAL') {
-        await this.handleCriticalError(errorEvent);
-      }
+    } else if (!recoverySuccessful && errorEvent.category.severity === 'CRITICAL') {
+      await this.handleCriticalError(errorEvent);
     }
   }
 
@@ -398,6 +440,112 @@ export class ErrorRecoveryWorkflowCoordinator {
 
   public clearError(errorId: string): void {
     this.workflowState.activeErrors.delete(errorId);
+    this.errorHandler.clearError(errorId);
     this.logger.debug(`Cleared error: ${errorId}`);
+  }
+
+  /**
+   * Setup circuit breakers for different components
+   */
+  private setupCircuitBreakers(): void {
+    // Connection circuit breaker
+    this.circuitBreakerRegistry.getOrCreate('ConnectionManager', {
+      failureThreshold: 5,
+      successThreshold: 3,
+      timeout: 30000, // 30 seconds
+      monitoringPeriod: 60000, // 1 minute
+      name: 'ConnectionManager'
+    });
+
+    // Database circuit breaker
+    this.circuitBreakerRegistry.getOrCreate('DatabaseManager', {
+      failureThreshold: 3,
+      successThreshold: 2,
+      timeout: 10000, // 10 seconds
+      monitoringPeriod: 30000, // 30 seconds
+      name: 'DatabaseManager'
+    });
+
+    // Trading circuit breaker
+    this.circuitBreakerRegistry.getOrCreate('TradeExecutor', {
+      failureThreshold: 2,
+      successThreshold: 1,
+      timeout: 60000, // 1 minute
+      monitoringPeriod: 300000, // 5 minutes
+      name: 'TradeExecutor'
+    });
+
+    // Blockchain watcher circuit breaker
+    this.circuitBreakerRegistry.getOrCreate('BlockchainWatcher', {
+      failureThreshold: 5,
+      successThreshold: 3,
+      timeout: 20000, // 20 seconds
+      monitoringPeriod: 60000, // 1 minute
+      name: 'BlockchainWatcher'
+    });
+
+    this.logger.info('Circuit breakers setup completed');
+  }
+
+  /**
+   * Extract component name from error context
+   */
+  private extractComponentFromContext(context: string): string {
+    // Extract component name from context strings like "Solana RPC Connection"
+    if (context.includes('Connection') || context.includes('RPC')) {
+      return 'ConnectionManager';
+    } else if (context.includes('Database')) {
+      return 'DatabaseManager';
+    } else if (context.includes('Trade')) {
+      return 'TradeExecutor';
+    } else if (context.includes('Blockchain')) {
+      return 'BlockchainWatcher';
+    } else if (context.includes('Position')) {
+      return 'PositionManager';
+    } else if (context.includes('Strategy')) {
+      return 'StrategyEngine';
+    } else if (context.includes('TUI') || context.includes('UI')) {
+      return 'TuiController';
+    }
+    
+    return 'SystemComponent';
+  }
+
+  /**
+   * Get error handler instance
+   */
+  public getErrorHandler(): ErrorHandler {
+    return this.errorHandler;
+  }
+
+  /**
+   * Get circuit breaker registry
+   */
+  public getCircuitBreakerRegistry(): CircuitBreakerRegistry {
+    return this.circuitBreakerRegistry;
+  }
+
+  /**
+   * Get notification system
+   */
+  public getNotificationSystem(): NotificationSystem {
+    return this.notificationSystem;
+  }
+
+  /**
+   * Get comprehensive error recovery statistics
+   */
+  public getEnhancedStats(): {
+    legacyStats: ErrorRecoveryWorkflowState;
+    errorHandlerStats: ReturnType<ErrorHandler['getErrorMetrics']>;
+    circuitBreakerStats: ReturnType<CircuitBreakerRegistry['getAllStats']>;
+    notificationStats: ReturnType<NotificationSystem['getStats']>;
+  } {
+    return {
+      legacyStats: this.getWorkflowState(),
+      errorHandlerStats: this.errorHandler.getErrorMetrics(),
+      circuitBreakerStats: this.circuitBreakerRegistry.getAllStats(),
+      notificationStats: this.notificationSystem.getStats()
+    };
   }
 }

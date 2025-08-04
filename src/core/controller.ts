@@ -800,6 +800,63 @@ export class CoreController {
   public getSystemStateMachine(): SystemStateMachine {
     return this.systemStateMachine;
   }
+
+  // Enhanced error handling access methods
+  public getErrorHandler() {
+    return this.errorRecoveryWorkflow?.getErrorHandler();
+  }
+
+  public getCircuitBreakerRegistry() {
+    return this.errorRecoveryWorkflow?.getCircuitBreakerRegistry();
+  }
+
+  public getNotificationSystem() {
+    return this.errorRecoveryWorkflow?.getNotificationSystem();
+  }
+
+  /**
+   * Get comprehensive system health information
+   */
+  public getSystemHealth(): {
+    overallHealthy: boolean;
+    components: Record<string, { status: string; healthy: boolean; errors?: number }>;
+    errorStats: any;
+    circuitBreakers: any;
+  } {
+    const errorRecoveryStats = this.errorRecoveryWorkflow?.getEnhancedStats();
+    const circuitBreakerHealth = this.getCircuitBreakerRegistry()?.getOverallHealth();
+
+    const components: Record<string, { status: string; healthy: boolean; errors?: number }> = {
+      database: {
+        status: this.systemStateMachine.getComponentStatus('database'),
+        healthy: this.systemStateMachine.getComponentStatus('database') === 'CONNECTED'
+      },
+      rpc: {
+        status: this.systemStateMachine.getComponentStatus('rpc'),
+        healthy: this.systemStateMachine.getComponentStatus('rpc') === 'CONNECTED'
+      },
+      blockchain: {
+        status: this.systemStateMachine.getComponentStatus('blockchain'),
+        healthy: this.systemStateMachine.getComponentStatus('blockchain') === 'MONITORING'
+      }
+    };
+
+    // Add error counts if available
+    if (errorRecoveryStats?.errorHandlerStats) {
+      const errorsByComponent = errorRecoveryStats.errorHandlerStats.errorsByComponent;
+      Object.keys(components).forEach(component => {
+        const componentName = component.charAt(0).toUpperCase() + component.slice(1) + 'Manager';
+        components[component].errors = errorsByComponent[componentName] || 0;
+      });
+    }
+
+    return {
+      overallHealthy: circuitBreakerHealth?.overallHealthy ?? true,
+      components,
+      errorStats: errorRecoveryStats?.errorHandlerStats,
+      circuitBreakers: circuitBreakerHealth
+    };
+  }
 }
 
 export default CoreController;

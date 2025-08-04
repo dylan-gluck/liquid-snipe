@@ -295,6 +295,10 @@ export class SystemStateMachine {
     this.logger.debug(`Component ${component} status updated to: ${status}`);
   }
 
+  public getComponentStatus(component: keyof SystemStateContext['components']): string {
+    return (this.context.components as any)[component] || 'UNKNOWN';
+  }
+
   public updateMetrics(metrics: Partial<SystemStateContext['metrics']>): void {
     this.context.metrics = { ...this.context.metrics, ...metrics };
   }

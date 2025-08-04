@@ -238,6 +238,20 @@ const defaultConfig: AppConfig = {
       notifyOnError: true,
     },
   },
+  marketMonitoring: {
+    enabled: true,
+    priceVolatilityThreshold: 25, // 25% price volatility threshold
+    volumeSpikeMultiplier: 3, // 3x volume spike multiplier
+    liquidityDropThreshold: 30, // 30% liquidity drop threshold
+    monitoringInterval: 30000, // Check every 30 seconds
+    historicalDataWindow: 60, // 60 minutes of historical data
+    circuitBreakerConfig: {
+      failureThreshold: 3,
+      successThreshold: 5,
+      timeout: 60000, // 1 minute timeout
+      monitoringPeriod: 300000, // 5 minute monitoring period
+    },
+  },
   activeStrategy: 'default',
   logLevel: 'info',
   pollingInterval: 1000, // 1 second

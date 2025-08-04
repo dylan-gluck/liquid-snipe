@@ -193,6 +193,21 @@ export interface NotificationConfig {
   };
 }
 
+export interface MarketMonitoringConfig {
+  enabled: boolean;
+  priceVolatilityThreshold: number; // Percentage threshold for unusual price volatility
+  volumeSpikeMultiplier: number; // Multiplier for unusual volume spikes
+  liquidityDropThreshold: number; // Percentage drop in liquidity to trigger alert
+  monitoringInterval: number; // Milliseconds between checks
+  historicalDataWindow: number; // Minutes of historical data to consider
+  circuitBreakerConfig: {
+    failureThreshold: number;
+    successThreshold: number;
+    timeout: number;
+    monitoringPeriod: number;
+  };
+}
+
 export interface AppConfig {
   rpc: RpcConfig;
   supportedDexes: DexConfig[];
@@ -201,6 +216,7 @@ export interface AppConfig {
   exitStrategies: ExitStrategyConfig[];
   database: DatabaseConfig;
   notifications?: NotificationConfig;
+  marketMonitoring?: MarketMonitoringConfig;
   dryRun: boolean;
   verbose: boolean;
   disableTui: boolean;
@@ -218,6 +234,7 @@ export interface FlexibleAppConfig {
   exitStrategies?: ExitStrategyConfig[];
   database?: Partial<DatabaseConfig>;
   notifications?: Partial<NotificationConfig>;
+  marketMonitoring?: Partial<MarketMonitoringConfig>;
   dryRun?: boolean;
   verbose?: boolean;
   disableTui?: boolean;

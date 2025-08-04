@@ -120,5 +120,9 @@ Uses SQLite with models for:
 - Keep TODO.md current to track project progress and next steps
 
 ### Git Workflow
-- Always commit changes after tests are passing
+- Always commit changes
 - Do not use emojis or credit claude, clean descriptive commit messages
+
+## Remember!
+- Always add simple, effective tests
+- Always run tests & commit changes

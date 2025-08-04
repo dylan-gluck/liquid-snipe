@@ -1,36 +1,66 @@
-# Liquid-Snipe
+# 🎯 Liquid-Snipe
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/dylan-gluck/liquid-snipe)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.3.3-blue.svg)](https://www.typescriptlang.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-20.x-green.svg)](https://nodejs.org/)
-[![Solana](https://img.shields.io/badge/Solana-Compatible-purple.svg)](https://solana.com/)
+[![TypeScript](https://img.shields.io/badge/typescript-%23007ACC.svg?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Solana](https://img.shields.io/badge/Solana-9945FF?style=for-the-badge&logo=solana&logoColor=white)](https://solana.com/)
+[![MIT License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](https://choosealicense.com/licenses/mit/)
+[![Node.js](https://img.shields.io/badge/node.js-6DA55F?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Jest](https://img.shields.io/badge/-jest-%23C21325?style=for-the-badge&logo=jest&logoColor=white)](https://jestjs.io/)
 
-> 🎯 **Advanced Solana Trading Bot** - Automated DeFi trading system that monitors new liquidity pools and executes intelligent trades with comprehensive risk management.
+> **Advanced Solana trading bot that monitors DEXes for new liquidity pools and executes automated trades with sophisticated exit strategies.**
 
-## Overview
+Liquid-Snipe is a high-performance, feature-rich trading bot designed for the Solana blockchain ecosystem. It automatically detects new liquidity pool creations across multiple DEXes, evaluates trading opportunities based on configurable criteria, and manages positions using advanced exit strategies including trailing stops, volatility-based exits, and multi-condition logic.
 
-Liquid-Snipe is a sophisticated, event-driven trading bot designed for the Solana blockchain. It automatically monitors DEX platforms for new liquidity pool creation events, analyzes emerging tokens using configurable strategies, and executes trades with built-in risk management and position tracking.
+## ✨ Features
 
-### Key Features
+### 🔍 **Real-Time Pool Monitoring**
+- Monitors multiple DEXes simultaneously (Raydium, Orca, Jupiter)
+- Real-time blockchain event tracking via WebSocket connections
+- Configurable pool filtering and token validation
+- Anti-rug pull protection with creator wallet monitoring
 
-- **🔍 Real-time DEX Monitoring** - Tracks new liquidity pools across multiple Solana DEX platforms
-- **🧠 Intelligent Strategy Engine** - Configurable trading strategies with risk assessment
-- **💰 Position Management** - Comprehensive tracking with multiple exit strategies
-- **⚡ Event-Driven Architecture** - Modular, scalable system design
-- **🛡️ Risk Management** - Built-in safety controls and circuit breakers
-- **📊 TUI Interface** - Text-based user interface for monitoring and control
-- **🗄️ SQLite Database** - Persistent storage for trades, positions, and analytics
-- **🔧 Flexible Configuration** - YAML/JSON config with CLI overrides
+### 🧠 **Advanced Exit Strategies**
+- **Multi-Condition Exits**: Combine multiple exit conditions with AND/OR logic
+- **Trailing Stop Loss**: Dynamic stop prices that follow profitable moves
+- **Volatility-Based Stops**: Adaptive stop losses based on market volatility
+- **Volume-Based Exits**: Exit on unusual volume spikes or drops
+- **Partial Exits**: Staged position closing for risk management
+- **Time-Based Exits**: Automatic position closure after specified periods
+
+### 📊 **Comprehensive Analysis**
+- Price trend detection using moving averages and momentum
+- Volume pattern analysis with spike/drop detection
+- Volatility calculations and risk assessment
+- Creator activity monitoring (placeholder)
+- Sentiment analysis framework (placeholder)
+
+### 🖥️ **Professional TUI Interface**
+- Real-time dashboard with live updates
+- Position tracking and P&L monitoring
+- Interactive command system
+- System status and error reporting
+- Customizable display layouts
+
+### 🛡️ **Risk Management**
+- Portfolio-level risk controls
+- Per-trade risk percentage limits
+- Slippage protection
+- Gas fee optimization
+- Circuit breaker patterns for error recovery
+
+### 📁 **Data Management**
+- SQLite database for all trading data
+- Comprehensive logging and audit trails
+- Event history and replay capabilities
+- Performance analytics and reporting
+- Automated data backup and cleanup
 
 ## Quick Start
 
 ### Prerequisites
 
-- Node.js 20.x or higher
-- pnpm package manager
-- Solana wallet keypair
-- RPC endpoint access
+- Node.js 18+
+- A Solana wallet with SOL for trading
+- RPC endpoint (Alchemy, QuickNode, or public)
 
 ### Installation
 
@@ -46,77 +76,137 @@ pnpm install
 pnpm build
 ```
 
-### Basic Configuration
+### Configuration
 
+1. **Create your wallet keypair:**
 ```bash
-# Export default configuration template
-pnpm start -- export-config config.yaml
+mkdir keys
+# Place your wallet keypair JSON file in keys/trading-wallet.json
+```
 
-# Edit the configuration file with your settings
-# - Set your RPC endpoint
-# - Configure wallet keypair path
-# - Adjust trading parameters
-# - Select exit strategies
+2. **Configure the bot:**
+```bash
+# Copy example configuration
+cp config.example.yaml config.yaml
 
-# Validate your configuration
-pnpm start -- validate-config config.yaml
+# Edit configuration with your settings
+nano config.yaml
+```
+
+3. **Set environment variables:**
+```bash
+cp .env.example .env
+# Add your RPC endpoints and API keys
 ```
 
 ### Running the Bot
 
 ```bash
-# Start with default configuration
+# Development mode with hot reload
+pnpm dev
+
+# Production mode
 pnpm start
 
-# Use custom configuration file
-pnpm start -- --config config.yaml
-
-# Run in dry-run mode (monitor only, no trading)
+# Dry run mode (monitoring only, no trading)
 pnpm start -- --dry-run
 
-# Start with specific trading parameters
-pnpm start -- --amount 100 --risk 5 --min-liquidity 2000
+# With custom configuration
+pnpm start -- --config ./my-config.yaml
+
+# Console mode (no TUI)
+pnpm start -- --disable-tui
 ```
 
-## Configuration
+## 📖 Configuration
 
-### Configuration File Structure
+### Basic Configuration
 
 ```yaml
-rpc:
-  httpUrl: "https://api.mainnet-beta.solana.com"
-  wsUrl: "wss://api.mainnet-beta.solana.com"
-
-wallet:
-  keypairPath: "./keys/trading-wallet.json"
-  riskPercent: 5
-
-trading:
-  defaultAmountUsd: 100
-  maxAmountUsd: 1000
+# Trading parameters
+tradeConfig:
   minLiquidityUsd: 1000
+  defaultTradeAmountUsd: 100
   maxSlippagePercent: 2
+  maxHoldingTimeMinutes: 1440
 
-dexes:
-  raydium:
-    enabled: true
-    programId: "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"
-  orca:
-    enabled: true
-    programId: "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP"
+# Risk management
+wallet:
+  riskPercent: 5  # Max 5% of wallet per trade
+  maxTotalRiskPercent: 20  # Max 20% total exposure
 
+# Exit strategies
 exitStrategies:
-  - name: "Default Profit Strategy"
-    conditions:
-      - type: "profit"
-        params:
-          profitPercentage: 50
-      - type: "time"
-        params:
-          timeMinutes: 60
-      - type: "loss"
-        params:
-          lossPercentage: 20
+  - type: "profit"
+    enabled: true
+    params:
+      profitPercentage: 50
+      trailingStopPercent: 5
+
+  - type: "trailing-stop"
+    enabled: false
+    params:
+      initialStopPercent: 15
+      trailPercent: 10
+      activationPercent: 20
+```
+
+### Advanced Exit Strategies
+
+```yaml
+exitStrategies:
+  # Multi-condition strategy
+  - type: "multi-condition"
+    enabled: false
+    params:
+      operator: "OR"  # AND | OR
+      priority: "HIGHEST_URGENCY"
+      conditions:
+        - type: "profit"
+          enabled: true
+          params:
+            profitPercentage: 30
+        - type: "trailing-stop"
+          enabled: true
+          params:
+            initialStopPercent: 20
+            trailPercent: 15
+
+  # Partial exit strategy
+  - type: "partial-exit"
+    enabled: false
+    params:
+      stages:
+        - triggerCondition:
+            type: "profit"
+            params:
+              profitPercentage: 25
+          exitPercentage: 30
+        - triggerCondition:
+            type: "profit"
+            params:
+              profitPercentage: 50
+          exitPercentage: 50
+
+  # Volatility-based stop loss
+  - type: "volatility-stop"
+    enabled: false
+    params:
+      baseStopPercent: 15
+      volatilityMultiplier: 0.5
+      lookbackPeriodMinutes: 30
+      minStopPercent: 10
+      maxStopPercent: 25
+
+  # Volume-based exit
+  - type: "volume-based"
+    enabled: false
+    params:
+      minVolumeUsd: 1000
+      volumeDropThresholdPercent: 70
+      lookbackPeriodMinutes: 15
+      exitOnVolumeSpike: true
+      volumeSpikeMultiplier: 5
 ```
 
 ### Command Line Options

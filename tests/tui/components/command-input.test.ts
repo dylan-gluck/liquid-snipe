@@ -16,6 +16,7 @@ const mockTextbox = {
 };
 
 const mockBox = {
+  on: jest.fn(),
   setContent: jest.fn(),
   hide: jest.fn(),
   show: jest.fn(),

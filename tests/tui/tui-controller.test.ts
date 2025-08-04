@@ -15,6 +15,7 @@ jest.mock('blessed', () => ({
     destroy: jest.fn(),
   })),
   box: jest.fn(() => ({
+    on: jest.fn(),
     setContent: jest.fn(),
     setLabel: jest.fn(),
     append: jest.fn(),

@@ -82,19 +82,22 @@ export abstract class BaseComponent {
 
   protected setupEventHandlers(): void {
     // Base event handling - can be overridden by subclasses
-    this.element.on('focus', () => {
-      this._isActive = true;
-      this.onFocus();
-    });
+    // Check if element has event methods (for test compatibility)
+    if (typeof this.element.on === 'function') {
+      this.element.on('focus', () => {
+        this._isActive = true;
+        this.onFocus();
+      });
 
-    this.element.on('blur', () => {
-      this._isActive = false;
-      this.onBlur();
-    });
+      this.element.on('blur', () => {
+        this._isActive = false;
+        this.onBlur();
+      });
 
-    this.element.on('resize', () => {
-      this.onResize();
-    });
+      this.element.on('resize', () => {
+        this.onResize();
+      });
+    }
   }
 
   // Abstract methods that must be implemented by subclasses

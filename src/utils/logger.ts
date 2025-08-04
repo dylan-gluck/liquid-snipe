@@ -1,4 +1,3 @@
-import { eventManager } from '../events/event-manager';
 import { LogEvent } from '../types';
 
 /**
@@ -28,11 +27,12 @@ export interface LoggerOptions {
 
 /**
  * Logger provides consistent logging throughout the application.
- * It emits log events and also outputs to the console.
+ * It outputs to the console and allows event emission through a callback.
  */
 export class Logger {
   private context: string;
   private options: Required<LoggerOptions>;
+  private eventEmitter?: (event: LogEvent) => void;
   
   private static readonly levelOrder: Record<LogEvent['level'], number> = {
     debug: 0,
@@ -67,6 +67,13 @@ export class Logger {
       ...this.options,
       ...options,
     };
+  }
+
+  /**
+   * Set the event emitter callback
+   */
+  public setEventEmitter(emitter: (event: LogEvent) => void): void {
+    this.eventEmitter = emitter;
   }
   
   /**
@@ -138,9 +145,9 @@ export class Logger {
       data,
     };
     
-    // Emit the log event
-    if (this.options.emitEvents) {
-      eventManager.emit('log', logEvent);
+    // Emit the log event if emitter is set
+    if (this.options.emitEvents && this.eventEmitter) {
+      this.eventEmitter(logEvent);
     }
     
     // Also log to console if enabled

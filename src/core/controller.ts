@@ -2,11 +2,13 @@ import { AppConfig } from '../types';
 import { Logger } from '../utils/logger';
 import { EventEmitter } from '../utils/event-emitter';
 import DatabaseManager from '../db';
+import { ConnectionManager } from '../blockchain';
 
 export class CoreController {
   private logger: Logger;
   private eventEmitter: EventEmitter;
   private dbManager: DatabaseManager;
+  private connectionManager: ConnectionManager;
   private config: AppConfig;
   private shuttingDown = false;
 
@@ -15,6 +17,12 @@ export class CoreController {
     this.logger = new Logger('CoreController', { verbose: config.verbose });
     this.eventEmitter = new EventEmitter();
     this.dbManager = new DatabaseManager(config.database.path);
+    this.connectionManager = new ConnectionManager(config.rpc);
+    
+    // Connect logger to event emitter
+    this.logger.setEventEmitter((logEvent) => {
+      this.eventEmitter.emit('log', logEvent);
+    });
   }
 
   public async initialize(): Promise<void> {
@@ -22,6 +30,10 @@ export class CoreController {
 
     // Initialize database
     await this.dbManager.initialize();
+
+    // Initialize Solana connection
+    await this.connectionManager.initialize();
+    this.logger.info('Solana RPC connection established');
 
     // Register shutdown handlers
     this.registerShutdownHandlers();
@@ -53,6 +65,14 @@ export class CoreController {
     this.logger.info('Liquid-Snipe started successfully');
   }
 
+  public getConnectionManager(): ConnectionManager {
+    return this.connectionManager;
+  }
+
+  public getConnection() {
+    return this.connectionManager.getConnection();
+  }
+
   public async shutdown(): Promise<void> {
     if (this.shuttingDown) {
       return;
@@ -62,6 +82,9 @@ export class CoreController {
     this.logger.info('Shutting down Liquid-Snipe...');
 
     try {
+      // Shutdown connection manager
+      await this.connectionManager.shutdown();
+
       // Close database connection
       await this.dbManager.close();
 
@@ -77,6 +100,31 @@ export class CoreController {
     // Log event handler
     this.eventEmitter.on('log', (logEvent) => {
       // TODO: Store logs in database
+    });
+
+    // Connection event handlers
+    this.connectionManager.on('connected', (status) => {
+      this.logger.info(`Connected to Solana RPC (latency: ${status.pingLatency}ms)`);
+    });
+
+    this.connectionManager.on('disconnected', (status) => {
+      this.logger.warning(`Disconnected from Solana RPC: ${status.lastError}`);
+    });
+
+    this.connectionManager.on('reconnected', (status) => {
+      this.logger.info(`Reconnected to Solana RPC after ${status.reconnectAttempts} attempts`);
+    });
+
+    this.connectionManager.on('reconnectFailed', ({ error, attempt }) => {
+      this.logger.error(`Reconnection attempt ${attempt} failed: ${error}`);
+    });
+
+    this.connectionManager.on('maxReconnectAttemptsReached', (status) => {
+      this.logger.error('Maximum reconnection attempts reached - connection lost');
+    });
+
+    this.connectionManager.on('error', (error) => {
+      this.logger.error(`Connection error: ${error.message}`);
     });
 
     // TODO: Register handlers for other events (newPool, tradeDecision, tradeResult)

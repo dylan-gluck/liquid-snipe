@@ -8,6 +8,11 @@ import { AppConfig, DexConfig } from './types';
 // Create a logger for the main process
 const logger = new Logger('Main');
 
+// Helper function to collect multiple option values
+function collect(value: string, previous: string[]): string[] {
+  return previous.concat([value]);
+}
+
 // Create the command line interface
 const program = new Command();
 
@@ -37,12 +42,10 @@ program
   .option('-d, --dry-run', 'Monitor only mode (no trading)')
   .option('-v, --verbose', 'Enable verbose logging')
   .option('--disable-tui', 'Run without TUI (console logs only)')
-  .option('--export-config <path>', 'Export current configuration to a file and exit');
-
-// Helper function to collect multiple option values
-function collect(value: string, previous: string[]): string[] {
-  return previous.concat([value]);
-}
+  .option('--export-config <path>', 'Export current configuration to a file and exit')
+  .action(async () => {
+    await main();
+  });
 
 // Add export config command
 program
@@ -97,27 +100,61 @@ program
     }
   });
 
-// Parse command line arguments
-program.parse();
-const options = program.opts();
+// Start the application
+async function main(): Promise<void> {
+  const options = program.opts();
+  
+  // Export configuration if requested
+  if (options.exportConfig) {
+    try {
+      const configManager = new ConfigManager(options.config);
+      
+      // Apply any command line options first
+      applyCommandLineOptions(configManager, options);
+      
+      // Save the configuration
+      configManager.saveToFile(options.exportConfig);
+      logger.info(`Configuration exported to ${options.exportConfig}`);
+      process.exit(0);
+    } catch (error) {
+      logger.error(`Failed to export configuration: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  }
 
-// Export configuration if requested
-if (options.exportConfig) {
   try {
+    // Load configuration
     const configManager = new ConfigManager(options.config);
     
-    // Apply any command line options first
+    // Apply command line overrides
     applyCommandLineOptions(configManager, options);
     
-    // Save the configuration
-    configManager.saveToFile(options.exportConfig);
-    logger.info(`Configuration exported to ${options.exportConfig}`);
-    process.exit(0);
+    // Get the final configuration
+    const config = configManager.getConfig();
+    
+    // Initialize and start the controller
+    const controller = new CoreController(config);
+    
+    // Initialize the application
+    await controller.initialize();
+    
+    // Start the application
+    await controller.start();
+    
+    // The application will continue running until shutdown
+    logger.info('Liquid-Snipe is running. Press Ctrl+C to exit.');
   } catch (error) {
-    logger.error(`Failed to export configuration: ${(error as Error).message}`);
+    if (error instanceof ConfigValidationError) {
+      logger.error(`Configuration validation failed: ${error.message}`);
+    } else {
+      logger.error(`Failed to start Liquid-Snipe: ${(error as Error).message}`);
+    }
     process.exit(1);
   }
 }
+
+// Parse command line arguments
+program.parse();
 
 // Apply command line options to the configuration
 function applyCommandLineOptions(
@@ -245,41 +282,3 @@ function applyCommandLineOptions(
   configManager.override(overrides);
 }
 
-// Start the application
-async function main(): Promise<void> {
-  try {
-    // Load configuration
-    const configManager = new ConfigManager(options.config);
-    
-    // Apply command line overrides
-    applyCommandLineOptions(configManager, options);
-    
-    // Get the final configuration
-    const config = configManager.getConfig();
-    
-    // Initialize and start the controller
-    const controller = new CoreController(config);
-    
-    // Initialize the application
-    await controller.initialize();
-    
-    // Start the application
-    await controller.start();
-    
-    // The application will continue running until shutdown
-    logger.info('Liquid-Snipe is running. Press Ctrl+C to exit.');
-  } catch (error) {
-    if (error instanceof ConfigValidationError) {
-      logger.error(`Configuration validation failed: ${error.message}`);
-    } else {
-      logger.error(`Failed to start Liquid-Snipe: ${(error as Error).message}`);
-    }
-    process.exit(1);
-  }
-}
-
-// Execute main function
-main().catch(error => {
-  logger.error(`Unhandled error: ${error}`);
-  process.exit(1);
-});

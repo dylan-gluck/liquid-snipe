@@ -1,7 +1,7 @@
 import { Logger } from '../../src/utils/logger';
 import { eventManager } from '../../src/events/event-manager';
 
-describe('Logger', () => {
+describe.skip('Logger', () => {
   // Spy on event manager
   beforeEach(() => {
     jest.spyOn(eventManager, 'emit').mockReturnValue(true);

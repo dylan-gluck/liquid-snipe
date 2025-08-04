@@ -61,7 +61,7 @@ export class EventManager implements EventProcessor {
     dbManager?: DatabaseManager
   ) {
     this.emitter = new NodeEventEmitter();
-    this.logger = new Logger('EventManager');
+    this.logger = new Logger('EventManager', { emitEvents: false }); // Prevent circular event emission
     this.db = dbManager;
     
     // Set default options

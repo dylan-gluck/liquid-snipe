@@ -10,6 +10,14 @@ import { TradeExecutor } from '../trading/trade-executor';
 import { PositionManager } from '../trading/position-manager';
 import { TuiController } from '../tui';
 import { EventManager } from '../events/event-manager';
+import {
+  TradingWorkflowCoordinator,
+  PositionWorkflowCoordinator,
+  UserInteractionWorkflowCoordinator,
+  DataManagementWorkflowCoordinator,
+  ErrorRecoveryWorkflowCoordinator
+} from './workflows';
+import { SystemStateMachine, SystemStateTransition } from './state-machines/system-state-machine';
 
 export class CoreController {
   private logger: Logger;
@@ -23,6 +31,17 @@ export class CoreController {
   private tradeExecutor?: TradeExecutor;
   private positionManager?: PositionManager;
   private tuiController?: TuiController;
+  
+  // Workflow coordinators
+  private tradingWorkflow?: TradingWorkflowCoordinator;
+  private positionWorkflow?: PositionWorkflowCoordinator;
+  private userInteractionWorkflow?: UserInteractionWorkflowCoordinator;
+  private dataManagementWorkflow?: DataManagementWorkflowCoordinator;
+  private errorRecoveryWorkflow?: ErrorRecoveryWorkflowCoordinator;
+  
+  // System state machine
+  private systemStateMachine: SystemStateMachine;
+  
   private config: AppConfig;
   private shuttingDown = false;
   private positionMonitoringInterval?: NodeJS.Timeout;
@@ -39,6 +58,9 @@ export class CoreController {
       logToDatabase: true,
     });
     this.connectionManager = new ConnectionManager(config.rpc);
+    
+    // Initialize system state machine
+    this.systemStateMachine = new SystemStateMachine();
     
     // Initialize event manager
     this.eventManager = new EventManager({
@@ -64,10 +86,12 @@ export class CoreController {
     try {
       // Initialize database
       await this.dbManager.initialize();
+      this.systemStateMachine.updateComponentStatus('database', 'CONNECTED');
       this.logger.info('Database initialized');
 
       // Initialize Solana connection
       await this.connectionManager.initialize();
+      this.systemStateMachine.updateComponentStatus('rpc', 'CONNECTED');
       this.logger.info('Solana RPC connection established');
 
       // Emit connection status
@@ -80,6 +104,9 @@ export class CoreController {
 
       // Initialize core trading components
       await this.initializeTradingComponents();
+
+      // Initialize workflow coordinators
+      await this.initializeWorkflowCoordinators();
 
       // Initialize blockchain monitoring
       await this.initializeBlockchainWatcher();
@@ -99,6 +126,9 @@ export class CoreController {
         );
       }
 
+      // Transition to ready state
+      this.systemStateMachine.transition(SystemStateTransition.INITIALIZATION_COMPLETED);
+      
       // Emit ready status
       this.eventManager.emit('systemStatus', {
         status: 'READY',
@@ -108,6 +138,11 @@ export class CoreController {
       this.logger.info('Liquid-Snipe initialized successfully');
     } catch (error) {
       this.logger.error(`Failed to initialize: ${(error as Error).message}`);
+      
+      // Transition to error state
+      this.systemStateMachine.transition(SystemStateTransition.ERROR_OCCURRED, {
+        lastError: error as Error
+      });
       
       // Emit error status
       this.eventManager.emit('systemStatus', {
@@ -156,6 +191,55 @@ export class CoreController {
     this.logger.info('Trading components initialized');
   }
 
+  private async initializeWorkflowCoordinators(): Promise<void> {
+    this.logger.info('Initializing workflow coordinators...');
+
+    // Initialize error recovery workflow first (it handles errors from other components)
+    this.errorRecoveryWorkflow = new ErrorRecoveryWorkflowCoordinator(
+      this.eventManager,
+      this.connectionManager,
+      this.dbManager
+    );
+
+    // Initialize trading workflow coordinator
+    if (this.strategyEngine && this.tradeExecutor) {
+      this.tradingWorkflow = new TradingWorkflowCoordinator(
+        this.eventManager,
+        this.strategyEngine,
+        this.tradeExecutor,
+        this.dbManager,
+        this.config.dryRun
+      );
+    }
+
+    // Initialize position workflow coordinator
+    if (this.positionManager) {
+      this.positionWorkflow = new PositionWorkflowCoordinator(
+        this.eventManager,
+        this.positionManager,
+        this.dbManager,
+        this.config.dryRun,
+        60000 // 1 minute monitoring interval
+      );
+    }
+
+    // Initialize user interaction workflow coordinator
+    this.userInteractionWorkflow = new UserInteractionWorkflowCoordinator(
+      this.eventManager,
+      this.dbManager,
+      this.config
+    );
+
+    // Initialize data management workflow coordinator
+    this.dataManagementWorkflow = new DataManagementWorkflowCoordinator(
+      this.eventManager,
+      this.dbManager,
+      this.config
+    );
+
+    this.logger.info('Workflow coordinators initialized');
+  }
+
   private async initializeBlockchainWatcher(): Promise<void> {
     // Only initialize if we have enabled DEXes
     const enabledDexes = this.config.supportedDexes.filter(dex => dex.enabled);
@@ -190,17 +274,65 @@ export class CoreController {
     this.logger.info('Blockchain watcher initialized');
   }
 
+  private async startWorkflowCoordinators(): Promise<void> {
+    this.logger.info('Starting workflow coordinators...');
+
+    // Start position workflow coordinator
+    if (this.positionWorkflow) {
+      await this.positionWorkflow.startPositionMonitoring();
+      this.logger.info('Position workflow coordinator started');
+    }
+
+    // Start data management workflow coordinator
+    if (this.dataManagementWorkflow) {
+      await this.dataManagementWorkflow.startDataManagement();
+      this.logger.info('Data management workflow coordinator started');
+    }
+
+    // Trading and user interaction workflows are event-driven and start automatically
+    // Error recovery workflow is always listening for events
+
+    this.logger.info('Workflow coordinators started');
+  }
+
+  private async stopWorkflowCoordinators(): Promise<void> {
+    this.logger.info('Stopping workflow coordinators...');
+
+    // Stop position workflow coordinator
+    if (this.positionWorkflow) {
+      this.positionWorkflow.stopPositionMonitoring();
+      this.logger.info('Position workflow coordinator stopped');
+    }
+
+    // Stop data management workflow coordinator
+    if (this.dataManagementWorkflow) {
+      this.dataManagementWorkflow.stopDataManagement();
+      this.logger.info('Data management workflow coordinator stopped');
+    }
+
+    // Other workflow coordinators don't need explicit stopping as they're event-driven
+
+    this.logger.info('Workflow coordinators stopped');
+  }
+
   public async start(): Promise<void> {
     this.logger.info('Starting Liquid-Snipe...');
+
+    // Transition to running state
+    this.systemStateMachine.transition(SystemStateTransition.START_REQUESTED);
 
     try {
       // Start blockchain monitoring if enabled
       if (this.blockchainWatcher) {
         await this.blockchainWatcher.start();
+        this.systemStateMachine.updateComponentStatus('blockchain', 'MONITORING');
         this.logger.info('Blockchain monitoring started');
       }
 
-      // Start position monitoring
+      // Start workflow coordinators
+      await this.startWorkflowCoordinators();
+
+      // Start position monitoring (legacy - now handled by position workflow)
       this.startPositionMonitoring();
 
       // Start in dry run mode if configured
@@ -243,6 +375,9 @@ export class CoreController {
     this.shuttingDown = true;
     this.logger.info('Shutting down Liquid-Snipe...');
 
+    // Transition to shutting down state
+    this.systemStateMachine.transition(SystemStateTransition.SHUTDOWN_REQUESTED);
+
     // Emit shutdown status
     this.eventManager.emit('systemStatus', {
       status: 'SHUTDOWN',
@@ -250,6 +385,9 @@ export class CoreController {
     });
 
     try {
+      // Stop workflow coordinators
+      await this.stopWorkflowCoordinators();
+
       // Stop position monitoring
       if (this.positionMonitoringInterval) {
         clearInterval(this.positionMonitoringInterval);
@@ -280,7 +418,11 @@ export class CoreController {
 
       // Close database connection
       await this.dbManager.close();
+      this.systemStateMachine.updateComponentStatus('database', 'DISCONNECTED');
       this.logger.info('Database closed');
+
+      // Transition to stopped state
+      this.systemStateMachine.transition(SystemStateTransition.SHUTDOWN_COMPLETED);
 
       this.logger.info('Shutdown completed successfully');
     } catch (error) {
@@ -631,6 +773,32 @@ export class CoreController {
 
   public getBlockchainWatcher(): BlockchainWatcher | undefined {
     return this.blockchainWatcher;
+  }
+
+  // Workflow coordinator access methods
+  public getTradingWorkflow(): TradingWorkflowCoordinator | undefined {
+    return this.tradingWorkflow;
+  }
+
+  public getPositionWorkflow(): PositionWorkflowCoordinator | undefined {
+    return this.positionWorkflow;
+  }
+
+  public getUserInteractionWorkflow(): UserInteractionWorkflowCoordinator | undefined {
+    return this.userInteractionWorkflow;
+  }
+
+  public getDataManagementWorkflow(): DataManagementWorkflowCoordinator | undefined {
+    return this.dataManagementWorkflow;
+  }
+
+  public getErrorRecoveryWorkflow(): ErrorRecoveryWorkflowCoordinator | undefined {
+    return this.errorRecoveryWorkflow;
+  }
+
+  // System state machine access
+  public getSystemStateMachine(): SystemStateMachine {
+    return this.systemStateMachine;
   }
 }
 

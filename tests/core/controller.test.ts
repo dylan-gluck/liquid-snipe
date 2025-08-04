@@ -88,11 +88,16 @@ describe('CoreController', () => {
     (ConnectionManager as jest.MockedClass<typeof ConnectionManager>).mockImplementation(() => mockConnectionManager);
     (EventManager as jest.MockedClass<typeof EventManager>).mockImplementation(() => mockEventManager);
 
-    controller = new CoreController(mockConfig);
+    controller = new CoreController(mockConfig, { disableProcessHandlers: true });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     jest.clearAllMocks();
+    
+    // Clean up any running controllers
+    if (controller) {
+      await controller.shutdown();
+    }
   });
 
   describe('initialization', () => {
@@ -131,7 +136,7 @@ describe('CoreController', () => {
 
     it('should initialize TUI when enabled', async () => {
       const configWithTui = { ...mockConfig, disableTui: false };
-      const controllerWithTui = new CoreController(configWithTui);
+      const controllerWithTui = new CoreController(configWithTui, { disableProcessHandlers: true });
       
       await controllerWithTui.initialize();
       expect(TuiController).toHaveBeenCalled();
@@ -144,7 +149,7 @@ describe('CoreController', () => {
           { ...mockConfig.supportedDexes[0], enabled: false },
         ],
       };
-      const controllerNoDexes = new CoreController(configNoDeXes);
+      const controllerNoDexes = new CoreController(configNoDeXes, { disableProcessHandlers: true });
       
       await controllerNoDexes.initialize();
       expect(BlockchainWatcher).not.toHaveBeenCalled();
@@ -328,7 +333,7 @@ describe('CoreController', () => {
       });
 
       it('should handle dry run mode correctly', async () => {
-        const dryRunController = new CoreController({ ...mockConfig, dryRun: true });
+        const dryRunController = new CoreController({ ...mockConfig, dryRun: true }, { disableProcessHandlers: true });
         await dryRunController.initialize();
 
         const decision: TradeDecision = {
@@ -465,7 +470,7 @@ describe('CoreController', () => {
 
     it('should return undefined for uninitialized optional components', () => {
       // Create a controller that hasn't been initialized
-      const uninitializedController = new CoreController(mockConfig);
+      const uninitializedController = new CoreController(mockConfig, { disableProcessHandlers: true });
       
       expect(uninitializedController.getStrategyEngine()).toBeUndefined();
       expect(uninitializedController.getTradeExecutor()).toBeUndefined();

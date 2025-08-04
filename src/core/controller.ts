@@ -26,9 +26,12 @@ export class CoreController {
   private config: AppConfig;
   private shuttingDown = false;
   private positionMonitoringInterval?: NodeJS.Timeout;
+  private processListeners: Array<{ event: string; handler: (...args: any[]) => void }> = [];
+  private disableProcessHandlers: boolean;
 
-  constructor(config: AppConfig) {
+  constructor(config: AppConfig, options: { disableProcessHandlers?: boolean } = {}) {
     this.config = config;
+    this.disableProcessHandlers = options.disableProcessHandlers || false;
     this.logger = new Logger('CoreController', { verbose: config.verbose });
     this.eventEmitter = new EventEmitter();
     this.dbManager = new DatabaseManager(config.database.path, {
@@ -250,6 +253,7 @@ export class CoreController {
       // Stop position monitoring
       if (this.positionMonitoringInterval) {
         clearInterval(this.positionMonitoringInterval);
+        this.positionMonitoringInterval = undefined;
       }
 
       // Stop blockchain watcher
@@ -263,6 +267,12 @@ export class CoreController {
         this.tuiController.stop();
         this.logger.info('TUI stopped');
       }
+
+      // Remove process event listeners
+      this.processListeners.forEach(({ event, handler }) => {
+        process.removeListener(event, handler);
+      });
+      this.processListeners = [];
 
       // Shutdown connection manager
       await this.connectionManager.shutdown();
@@ -392,33 +402,50 @@ export class CoreController {
   }
 
   private registerShutdownHandlers(): void {
-    // Handle process termination signals
-    process.on('SIGINT', async () => {
+    // Skip process handlers in test environments
+    if (this.disableProcessHandlers) {
+      return;
+    }
+
+    // Create handlers that can be properly removed
+    const sigintHandler = async () => {
       this.logger.info('Received SIGINT signal');
       await this.shutdown();
       process.exit(0);
-    });
+    };
 
-    process.on('SIGTERM', async () => {
+    const sigtermHandler = async () => {
       this.logger.info('Received SIGTERM signal');
       await this.shutdown();
       process.exit(0);
-    });
+    };
 
-    // Handle uncaught exceptions
-    process.on('uncaughtException', async error => {
+    const uncaughtExceptionHandler = async (error: Error) => {
       this.logger.error(`Uncaught exception: ${error.message}`);
       this.logger.error(error.stack || '');
       await this.shutdown();
       process.exit(1);
-    });
+    };
 
-    // Handle unhandled promise rejections
-    process.on('unhandledRejection', async reason => {
+    const unhandledRejectionHandler = async (reason: any) => {
       this.logger.error(`Unhandled promise rejection: ${reason}`);
       await this.shutdown();
       process.exit(1);
-    });
+    };
+
+    // Register handlers and track them
+    process.on('SIGINT', sigintHandler);
+    process.on('SIGTERM', sigtermHandler);
+    process.on('uncaughtException', uncaughtExceptionHandler);
+    process.on('unhandledRejection', unhandledRejectionHandler);
+
+    // Store references for cleanup
+    this.processListeners.push(
+      { event: 'SIGINT', handler: sigintHandler },
+      { event: 'SIGTERM', handler: sigtermHandler },
+      { event: 'uncaughtException', handler: uncaughtExceptionHandler },
+      { event: 'unhandledRejection', handler: unhandledRejectionHandler }
+    );
   }
 
   // Core workflow handlers

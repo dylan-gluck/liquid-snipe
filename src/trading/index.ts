@@ -8,3 +8,5 @@ export {
   LiquidityThresholdStrategy,
   RiskAssessmentStrategy,
 } from './strategy-engine';
+
+export { TradeExecutor } from './trade-executor';

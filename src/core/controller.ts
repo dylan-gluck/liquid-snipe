@@ -1,8 +1,13 @@
-import { AppConfig } from '../types';
+import { AppConfig, NewPoolEvent, TradeDecision, TradeResult } from '../types';
 import { Logger } from '../utils/logger';
 import { EventEmitter } from '../utils/event-emitter';
 import DatabaseManager from '../db';
 import { ConnectionManager } from '../blockchain';
+import { BlockchainWatcher } from '../blockchain/blockchain-watcher';
+import { TokenInfoService } from '../blockchain/token-info-service';
+import { StrategyEngine } from '../trading/strategy-engine';
+import { TradeExecutor } from '../trading/trade-executor';
+import { PositionManager } from '../trading/position-manager';
 import { TuiController } from '../tui';
 import { EventManager } from '../events/event-manager';
 
@@ -12,9 +17,15 @@ export class CoreController {
   private eventManager: EventManager;
   private dbManager: DatabaseManager;
   private connectionManager: ConnectionManager;
+  private blockchainWatcher?: BlockchainWatcher;
+  private tokenInfoService?: TokenInfoService;
+  private strategyEngine?: StrategyEngine;
+  private tradeExecutor?: TradeExecutor;
+  private positionManager?: PositionManager;
   private tuiController?: TuiController;
   private config: AppConfig;
   private shuttingDown = false;
+  private positionMonitoringInterval?: NodeJS.Timeout;
 
   constructor(config: AppConfig) {
     this.config = config;
@@ -47,68 +58,170 @@ export class CoreController {
       timestamp: Date.now(),
     });
 
-    // Initialize database
-    await this.dbManager.initialize();
+    try {
+      // Initialize database
+      await this.dbManager.initialize();
+      this.logger.info('Database initialized');
 
-    // Initialize Solana connection
-    await this.connectionManager.initialize();
-    this.logger.info('Solana RPC connection established');
+      // Initialize Solana connection
+      await this.connectionManager.initialize();
+      this.logger.info('Solana RPC connection established');
 
-    // Emit connection status
-    this.eventManager.emit('connectionStatus', {
-      type: 'RPC',
-      status: 'CONNECTED',
-      endpoint: this.config.rpc.httpUrl,
-      timestamp: Date.now(),
-    });
+      // Emit connection status
+      this.eventManager.emit('connectionStatus', {
+        type: 'RPC',
+        status: 'CONNECTED',
+        endpoint: this.config.rpc.httpUrl,
+        timestamp: Date.now(),
+      });
 
-    // Register shutdown handlers
-    this.registerShutdownHandlers();
+      // Initialize core trading components
+      await this.initializeTradingComponents();
 
-    // Register event handlers
-    this.registerEventHandlers();
+      // Initialize blockchain monitoring
+      await this.initializeBlockchainWatcher();
 
-    // Initialize TUI if not disabled
-    if (!this.config.disableTui) {
-      this.tuiController = new TuiController(
-        this.config,
-        this.dbManager,
-        this.eventManager
-      );
+      // Register shutdown handlers
+      this.registerShutdownHandlers();
+
+      // Register event handlers
+      this.registerEventHandlers();
+
+      // Initialize TUI if not disabled
+      if (!this.config.disableTui) {
+        this.tuiController = new TuiController(
+          this.config,
+          this.dbManager,
+          this.eventManager
+        );
+      }
+
+      // Emit ready status
+      this.eventManager.emit('systemStatus', {
+        status: 'READY',
+        timestamp: Date.now(),
+      });
+
+      this.logger.info('Liquid-Snipe initialized successfully');
+    } catch (error) {
+      this.logger.error(`Failed to initialize: ${(error as Error).message}`);
+      
+      // Emit error status
+      this.eventManager.emit('systemStatus', {
+        status: 'ERROR',
+        timestamp: Date.now(),
+        reason: (error as Error).message,
+      });
+      
+      throw error;
+    }
+  }
+
+  private async initializeTradingComponents(): Promise<void> {
+    this.logger.info('Initializing trading components...');
+
+    // Initialize token info service
+    this.tokenInfoService = new TokenInfoService(
+      this.connectionManager,
+      this.dbManager,
+      {
+        cacheExpiryMinutes: 30,
+      }
+    );
+
+    // Initialize strategy engine
+    this.strategyEngine = new StrategyEngine(
+      this.connectionManager,
+      this.tokenInfoService,
+      this.dbManager,
+      this.config
+    );
+
+    // Initialize trade executor
+    this.tradeExecutor = new TradeExecutor(
+      this.connectionManager,
+      this.dbManager,
+      this.config
+    );
+
+    // Initialize position manager
+    this.positionManager = new PositionManager(
+      this.dbManager,
+      this.eventManager
+    );
+
+    this.logger.info('Trading components initialized');
+  }
+
+  private async initializeBlockchainWatcher(): Promise<void> {
+    // Only initialize if we have enabled DEXes
+    const enabledDexes = this.config.supportedDexes.filter(dex => dex.enabled);
+    
+    if (enabledDexes.length === 0) {
+      this.logger.warning('No DEXes enabled - blockchain monitoring disabled');
+      return;
     }
 
-    // Emit ready status
-    this.eventManager.emit('systemStatus', {
-      status: 'READY',
-      timestamp: Date.now(),
+    this.logger.info(`Initializing blockchain watcher for ${enabledDexes.length} DEXes...`);
+
+    this.blockchainWatcher = new BlockchainWatcher(
+      this.connectionManager,
+      enabledDexes,
+      'finalized'
+    );
+
+    // Connect blockchain watcher events
+    this.blockchainWatcher.on('newPool', (poolEvent: NewPoolEvent) => {
+      this.handleNewPoolEvent(poolEvent);
     });
 
-    this.logger.info('Liquid-Snipe initialized successfully');
+    this.blockchainWatcher.on('error', (error: Error) => {
+      this.logger.error(`Blockchain watcher error: ${error.message}`);
+      this.eventManager.emit('systemStatus', {
+        status: 'ERROR',
+        timestamp: Date.now(),
+        reason: `Blockchain watcher: ${error.message}`,
+      });
+    });
+
+    this.logger.info('Blockchain watcher initialized');
   }
 
   public async start(): Promise<void> {
     this.logger.info('Starting Liquid-Snipe...');
 
-    // TODO: Initialize and start other components (blockchain watcher, strategy engine, etc.)
-
-    // Start in dry run mode if configured
-    if (this.config.dryRun) {
-      this.logger.info('Running in DRY RUN mode - no trades will be executed');
-    }
-
-    // Start TUI or console mode based on configuration
-    if (this.config.disableTui) {
-      this.logger.info('TUI disabled - running in console mode');
-      // In console mode, keep the process alive
-      this.startConsoleMode();
-    } else {
-      this.logger.info('TUI enabled - starting interface');
-      if (this.tuiController) {
-        this.tuiController.start();
+    try {
+      // Start blockchain monitoring if enabled
+      if (this.blockchainWatcher) {
+        await this.blockchainWatcher.start();
+        this.logger.info('Blockchain monitoring started');
       }
-    }
 
-    this.logger.info('Liquid-Snipe started successfully');
+      // Start position monitoring
+      this.startPositionMonitoring();
+
+      // Start in dry run mode if configured
+      if (this.config.dryRun) {
+        this.logger.info('Running in DRY RUN mode - no trades will be executed');
+      }
+
+      // Start TUI or console mode based on configuration
+      if (this.config.disableTui) {
+        this.logger.info('TUI disabled - running in console mode');
+        // In console mode, keep the process alive
+        this.startConsoleMode();
+      } else {
+        this.logger.info('TUI enabled - starting interface');
+        if (this.tuiController) {
+          this.tuiController.start();
+        }
+      }
+
+      this.logger.info('Liquid-Snipe started successfully');
+    } catch (error) {
+      this.logger.error(`Failed to start: ${(error as Error).message}`);
+      throw error;
+    }
   }
 
   public getConnectionManager(): ConnectionManager {
@@ -134,18 +247,30 @@ export class CoreController {
     });
 
     try {
+      // Stop position monitoring
+      if (this.positionMonitoringInterval) {
+        clearInterval(this.positionMonitoringInterval);
+      }
+
+      // Stop blockchain watcher
+      if (this.blockchainWatcher) {
+        await this.blockchainWatcher.stop();
+        this.logger.info('Blockchain watcher stopped');
+      }
+
       // Stop TUI if running
       if (this.tuiController) {
         this.tuiController.stop();
+        this.logger.info('TUI stopped');
       }
 
       // Shutdown connection manager
       await this.connectionManager.shutdown();
+      this.logger.info('Connection manager shutdown');
 
       // Close database connection
       await this.dbManager.close();
-
-      // TODO: Shutdown other components
+      this.logger.info('Database closed');
 
       this.logger.info('Shutdown completed successfully');
     } catch (error) {
@@ -252,7 +377,18 @@ export class CoreController {
       });
     });
 
-    // TODO: Register handlers for other events (newPool, tradeDecision, tradeResult)
+    // Register workflow event handlers
+    this.eventManager.on('newPool', (poolEvent: NewPoolEvent) => {
+      this.handleNewPoolEvent(poolEvent);
+    });
+
+    this.eventManager.on('tradeDecision', (decision: TradeDecision) => {
+      this.handleTradeDecision(decision);
+    });
+
+    this.eventManager.on('tradeResult', (result: TradeResult) => {
+      this.handleTradeResult(result);
+    });
   }
 
   private registerShutdownHandlers(): void {
@@ -283,6 +419,191 @@ export class CoreController {
       await this.shutdown();
       process.exit(1);
     });
+  }
+
+  // Core workflow handlers
+  private async handleNewPoolEvent(poolEvent: NewPoolEvent): Promise<void> {
+    try {
+      this.logger.info(`New pool detected: ${poolEvent.poolAddress} (${poolEvent.tokenA}/${poolEvent.tokenB})`);
+
+      // Save pool to database
+      await this.dbManager.addLiquidityPool({
+        address: poolEvent.poolAddress,
+        dexName: poolEvent.dex,
+        tokenA: poolEvent.tokenA,
+        tokenB: poolEvent.tokenB,
+        createdAt: poolEvent.timestamp,
+        initialLiquidityUsd: 0, // Will be updated after evaluation
+        lastUpdated: poolEvent.timestamp,
+        currentLiquidityUsd: 0,
+      });
+
+      // Emit pool event for other components
+      this.eventManager.emit('newPool', poolEvent);
+
+      // Evaluate pool for trading if strategy engine is available
+      if (this.strategyEngine) {
+        const decision = await this.strategyEngine.evaluatePool(poolEvent);
+        
+        if (decision) {
+          this.eventManager.emit('tradeDecision', decision);
+        }
+      }
+    } catch (error) {
+      this.logger.error(`Error handling new pool event: ${(error as Error).message}`);
+    }
+  }
+
+  private async handleTradeDecision(decision: TradeDecision): Promise<void> {
+    try {
+      this.logger.info(`Trade decision: ${decision.shouldTrade ? 'BUY' : 'SKIP'} ${decision.targetToken}`);
+      
+      if (decision.shouldTrade) {
+        if (this.config.dryRun) {
+          this.logger.info(`[DRY RUN] Would execute trade: ${decision.tradeAmountUsd} USD for ${decision.targetToken}`);
+          this.logger.info(`[DRY RUN] Reason: ${decision.reason}`);
+          
+          // Emit a mock success result for dry run
+          this.eventManager.emit('tradeResult', {
+            success: true,
+            signature: 'DRY_RUN_SIGNATURE',
+            tradeId: 'DRY_RUN_TRADE',
+            positionId: 'DRY_RUN_POSITION',
+            timestamp: Date.now(),
+          });
+        } else if (this.tradeExecutor) {
+          // Execute the trade
+          const result = await this.tradeExecutor.executeTrade(decision);
+          this.eventManager.emit('tradeResult', result);
+        }
+      } else {
+        this.logger.info(`Trade skipped: ${decision.reason}`);
+      }
+    } catch (error) {
+      this.logger.error(`Error handling trade decision: ${(error as Error).message}`);
+      
+      // Emit failed result
+      this.eventManager.emit('tradeResult', {
+        success: false,
+        error: (error as Error).message,
+        timestamp: Date.now(),
+      });
+    }
+  }
+
+  private async handleTradeResult(result: TradeResult): Promise<void> {
+    try {
+      if (result.success) {
+        this.logger.info(`Trade executed successfully: ${result.signature}`);
+        
+        if (result.positionId && this.positionManager) {
+          // The position is automatically tracked in the database
+          this.logger.info(`New position created: ${result.positionId}`);
+        }
+      } else {
+        this.logger.error(`Trade execution failed: ${result.error}`);
+      }
+    } catch (error) {
+      this.logger.error(`Error handling trade result: ${(error as Error).message}`);
+    }
+  }
+
+  private startPositionMonitoring(): void {
+    if (!this.positionManager) {
+      this.logger.warning('Position manager not available - position monitoring disabled');
+      return;
+    }
+
+    this.logger.info('Starting position monitoring...');
+
+    // Check positions every minute
+    this.positionMonitoringInterval = setInterval(async () => {
+      if (this.shuttingDown) {
+        return;
+      }
+
+      try {
+        await this.checkAndExitPositions();
+      } catch (error) {
+        this.logger.error(`Error in position monitoring: ${(error as Error).message}`);
+      }
+    }, 60000); // 60 seconds
+  }
+
+  private async checkAndExitPositions(): Promise<void> {
+    if (!this.positionManager) {
+      return;
+    }
+
+    try {
+      const openPositions = await this.dbManager.getOpenPositions();
+      
+      if (openPositions.length > 0) {
+        this.logger.debug(`Checking ${openPositions.length} open positions for exit conditions`);
+        
+        for (const position of openPositions) {
+          try {
+            // Get position model from database
+            const positionModel = await this.positionManager.getPosition(position.id);
+            if (!positionModel) {
+              this.logger.warning(`Position ${position.id} not found in database`);
+              continue;
+            }
+
+            // For now, use a placeholder current price - in real implementation,
+            // this would come from the token info service
+            const currentPrice = {
+              tokenAddress: position.tokenAddress,
+              price: position.entryPrice, // Placeholder
+              timestamp: Date.now(),
+              source: 'placeholder',
+            };
+
+            const exitResult = this.positionManager.evaluateExitConditions(positionModel, currentPrice);
+            
+            if (exitResult.shouldExit) {
+              this.logger.info(`Exit condition met for position ${position.id}: ${exitResult.reason}`);
+              
+              if (this.config.dryRun) {
+                this.logger.info(`[DRY RUN] Would exit position ${position.id}`);
+              } else {
+                await this.positionManager.processExitRequest({
+                  positionId: position.id,
+                  reason: exitResult.reason,
+                  urgency: exitResult.urgency,
+                  partialExitPercentage: exitResult.partialExitPercentage,
+                });
+              }
+            }
+          } catch (positionError) {
+            this.logger.error(`Error checking position ${position.id}: ${(positionError as Error).message}`);
+          }
+        }
+      }
+    } catch (error) {
+      this.logger.error(`Error checking positions: ${(error as Error).message}`);
+    }
+  }
+
+  // Public access methods for components
+  public getStrategyEngine(): StrategyEngine | undefined {
+    return this.strategyEngine;
+  }
+
+  public getTradeExecutor(): TradeExecutor | undefined {
+    return this.tradeExecutor;
+  }
+
+  public getPositionManager(): PositionManager | undefined {
+    return this.positionManager;
+  }
+
+  public getTokenInfoService(): TokenInfoService | undefined {
+    return this.tokenInfoService;
+  }
+
+  public getBlockchainWatcher(): BlockchainWatcher | undefined {
+    return this.blockchainWatcher;
   }
 }
 

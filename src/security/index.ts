@@ -44,3 +44,31 @@ export {
   type RiskMetrics,
   type RiskAlert
 } from './risk-manager';
+
+// Hardware wallet exports
+export {
+  HardwareWalletInterface,
+  HardwareWalletFactory,
+  HardwareWalletInfo,
+  ConnectionStatus,
+  HardwareCapabilities,
+  HardwareAccount,
+  HardwareSigningOptions,
+  HardwareSigningResult,
+  HardwareWalletConfig,
+  HardwareWalletError,
+  HardwareWalletException,
+  DEFAULT_HARDWARE_WALLET_CONFIG,
+  LedgerAdapter,
+  TrezorAdapter,
+  MockAdapter,
+  HardwareWalletFactoryImpl,
+  HardwareWalletType,
+  DetectionResult,
+  createHardwareWalletFactory,
+  getAvailableWalletTypes,
+  isWalletTypeSupported,
+  type LedgerConfig,
+  type TrezorConfig,
+  type MockAdapterConfig,
+} from './hardware-wallet';

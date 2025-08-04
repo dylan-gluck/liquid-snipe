@@ -42,6 +42,16 @@ const defaultConfig: AppConfig = {
     maxTotalRiskPercent: 20, // Maximum 20% of portfolio at risk at any time
     confirmationRequired: false,
     excludedTokens: [], // No excluded tokens by default
+    hardwareWallet: {
+      enabled: false, // Disabled by default for security
+      defaultDerivationPath: "m/44'/501'/0'/0'",
+      timeout: 30000, // 30 seconds
+      requireConfirmation: true,
+      blindSigning: false,
+      autoConnect: false, // Don't auto-connect for security
+      reconnectAttempts: 3,
+      reconnectDelay: 2000, // 2 seconds
+    },
   },
   tradeConfig: {
     minLiquidityUsd: 1000, // Minimum liquidity threshold in USD

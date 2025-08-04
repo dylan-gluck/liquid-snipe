@@ -36,6 +36,19 @@ export interface WalletConfig {
   maxTotalRiskPercent?: number; // Maximum portfolio percentage at risk
   confirmationRequired?: boolean; // Require confirmation for trades
   excludedTokens?: string[]; // Addresses of tokens to exclude from trading
+  hardwareWallet?: HardwareWalletConfig; // Hardware wallet configuration
+}
+
+export interface HardwareWalletConfig {
+  enabled: boolean;
+  preferredVendor?: 'ledger' | 'trezor';
+  defaultDerivationPath: string;
+  timeout: number;
+  requireConfirmation: boolean;
+  blindSigning: boolean;
+  autoConnect: boolean;
+  reconnectAttempts: number;
+  reconnectDelay: number;
 }
 
 // Partial interface for easier patching in tests and overrides

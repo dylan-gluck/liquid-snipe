@@ -200,7 +200,7 @@ export class PositionWorkflowCoordinator {
       await this.positionManager.processExitRequest({
         positionId,
         reason,
-        urgency,
+        urgency: urgency === 'CRITICAL' ? 'HIGH' : urgency,
         partialExitPercentage,
       });
 

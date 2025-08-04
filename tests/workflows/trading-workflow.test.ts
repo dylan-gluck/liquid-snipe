@@ -214,10 +214,19 @@ describe('TradingWorkflowCoordinator', () => {
 
   describe('Dry Run Mode', () => {
     let dryRunWorkflow: TradingWorkflowCoordinator;
+    let dryRunMockEventManager: jest.Mocked<EventManager>;
 
     beforeEach(() => {
+      // Create separate mock for dry run to avoid interference
+      dryRunMockEventManager = {
+        on: jest.fn(),
+        emit: jest.fn(),
+        off: jest.fn(),
+        removeAllListeners: jest.fn(),
+      } as any;
+
       dryRunWorkflow = new TradingWorkflowCoordinator(
-        mockEventManager,
+        dryRunMockEventManager,
         mockStrategyEngine,
         mockTradeExecutor,
         mockDbManager,
@@ -243,16 +252,20 @@ describe('TradingWorkflowCoordinator', () => {
         tradeExecution: 'PENDING'
       });
 
-      const tradeDecisionHandler = mockEventManager.on.mock.calls
+      // Get the handler registered by dryRunWorkflow
+      const tradeDecisionHandler = dryRunMockEventManager.on.mock.calls
         .find((call: any) => call[0] === 'tradeDecision')?.[1];
 
+      expect(tradeDecisionHandler).toBeDefined();
+
+      // Call the handler
       await tradeDecisionHandler!(mockDecision);
 
       // Should not execute real trade
       expect(mockTradeExecutor.executeTrade).not.toHaveBeenCalled();
 
       // Should emit dry run result
-      expect(mockEventManager.emit).toHaveBeenCalledWith('tradeResult', {
+      expect(dryRunMockEventManager.emit).toHaveBeenCalledWith('tradeResult', {
         success: true,
         signature: 'DRY_RUN_SIGNATURE',
         tradeId: 'DRY_RUN_TRADE',

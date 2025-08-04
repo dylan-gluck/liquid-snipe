@@ -71,18 +71,23 @@ export class TradingWorkflowCoordinator {
     try {
       // Step 1: Pool evaluation
       this.updateWorkflowState(workflowId, { poolEvaluation: 'IN_PROGRESS' });
-      stateMachine.transition(TradingStateTransition.EVALUATION_COMPLETED);
 
       const decision = await this.strategyEngine.evaluatePool(poolEvent);
 
       this.updateWorkflowState(workflowId, { poolEvaluation: 'COMPLETED' });
 
       if (decision) {
+        // Have both tokenAddress (from initial context) and tradeAmount
         stateMachine.transition(TradingStateTransition.EVALUATION_COMPLETED, {
+          tokenAddress: poolEvent.tokenA,
           tradeAmount: decision.tradeAmountUsd,
         });
       } else {
-        stateMachine.transition(TradingStateTransition.EVALUATION_COMPLETED);
+        // No trade recommendation - clear context to trigger IDLE transition
+        stateMachine.transition(TradingStateTransition.EVALUATION_COMPLETED, {
+          tokenAddress: undefined,
+          tradeAmount: undefined,
+        });
       }
 
       // Step 2: Trade decision processing

@@ -206,7 +206,7 @@ export class PositionStateMachine {
           from: state,
           to: PositionState.ERROR,
           trigger: PositionStateTransition.ERROR_OCCURRED,
-          action: context => {
+          action: (context: PositionStateContext) => {
             this.logger.error(
               `Position ${context.positionId} encountered error: ${context.error?.message}`,
             );

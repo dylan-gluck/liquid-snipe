@@ -13,7 +13,7 @@ interface ConnectionInfo {
 }
 
 interface SystemInfo {
-  status: 'STARTING' | 'READY' | 'PAUSED' | 'ERROR' | 'SHUTDOWN';
+  status: 'STARTING' | 'READY' | 'PAUSED' | 'ERROR' | 'SHUTDOWN' | 'CRITICAL_ERROR';
   uptime: number;
   memoryUsage: number;
   cpuUsage: number;

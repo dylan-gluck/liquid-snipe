@@ -122,6 +122,36 @@ describe('TradingStateMachine', () => {
       expect(success).toBe(false);
       expect(stateMachine.getCurrentState()).toBe(TradingState.EVALUATING_POOL);
     });
+
+    it('should reject transitions with only tokenAddress but no tradeAmount', () => {
+      stateMachine.transition(TradingStateTransition.POOL_DETECTED);
+      
+      // Try to transition with only tokenAddress
+      const success = stateMachine.transition(TradingStateTransition.EVALUATION_COMPLETED, {
+        tokenAddress: 'test_token'
+        // missing tradeAmount
+      });
+      
+      expect(success).toBe(false);
+      expect(stateMachine.getCurrentState()).toBe(TradingState.EVALUATING_POOL);
+    });
+
+    it('should handle partial context correctly vs empty context', () => {
+      // Test 1: Empty context should go to IDLE
+      stateMachine.transition(TradingStateTransition.POOL_DETECTED);
+      const emptySuccess = stateMachine.transition(TradingStateTransition.EVALUATION_COMPLETED);
+      expect(emptySuccess).toBe(true);
+      expect(stateMachine.getCurrentState()).toBe(TradingState.IDLE);
+
+      // Test 2: Partial context should fail and stay in EVALUATING_POOL
+      stateMachine.transition(TradingStateTransition.POOL_DETECTED);
+      const partialSuccess = stateMachine.transition(TradingStateTransition.EVALUATION_COMPLETED, {
+        tokenAddress: 'test_token'
+        // missing tradeAmount - this should fail
+      });
+      expect(partialSuccess).toBe(false);
+      expect(stateMachine.getCurrentState()).toBe(TradingState.EVALUATING_POOL);
+    });
   });
 
   describe('Error Handling', () => {
@@ -292,6 +322,62 @@ describe('TradingStateMachine', () => {
       // Reset
       stateMachine.reset();
       expect(stateMachine.getCurrentState()).toBe(TradingState.IDLE);
+    });
+
+    it('should reset from EVALUATING_POOL state', () => {
+      stateMachine.transition(TradingStateTransition.POOL_DETECTED);
+      expect(stateMachine.getCurrentState()).toBe(TradingState.EVALUATING_POOL);
+
+      stateMachine.reset();
+      expect(stateMachine.getCurrentState()).toBe(TradingState.IDLE);
+    });
+
+    it('should reset from EXECUTING_TRADE state', () => {
+      // Get to EXECUTING_TRADE state
+      stateMachine.transition(TradingStateTransition.POOL_DETECTED);
+      stateMachine.transition(TradingStateTransition.EVALUATION_COMPLETED, {
+        tokenAddress: 'test_token',
+        tradeAmount: 100
+      });
+      stateMachine.transition(TradingStateTransition.TRADE_PREPARED);
+      expect(stateMachine.getCurrentState()).toBe(TradingState.EXECUTING_TRADE);
+
+      stateMachine.reset();
+      expect(stateMachine.getCurrentState()).toBe(TradingState.IDLE);
+    });
+
+    it('should reset from CONFIRMING_TRADE state', () => {
+      // Get to CONFIRMING_TRADE state
+      stateMachine.transition(TradingStateTransition.POOL_DETECTED);
+      stateMachine.transition(TradingStateTransition.EVALUATION_COMPLETED, {
+        tokenAddress: 'test_token',
+        tradeAmount: 100
+      });
+      stateMachine.transition(TradingStateTransition.TRADE_PREPARED);
+      stateMachine.transition(TradingStateTransition.TRADE_SUBMITTED);
+      expect(stateMachine.getCurrentState()).toBe(TradingState.CONFIRMING_TRADE);
+
+      stateMachine.reset();
+      expect(stateMachine.getCurrentState()).toBe(TradingState.IDLE);
+    });
+
+    it('should clear context when resetting', () => {
+      // Set some context
+      stateMachine.transition(TradingStateTransition.POOL_DETECTED, {
+        poolAddress: 'test_pool',
+        tokenAddress: 'test_token'
+      });
+      stateMachine.transition(TradingStateTransition.EVALUATION_COMPLETED, {
+        tradeAmount: 100
+      });
+
+      const contextBefore = stateMachine.getContext();
+      expect(Object.keys(contextBefore).length).toBeGreaterThan(0);
+
+      stateMachine.reset();
+      
+      const contextAfter = stateMachine.getContext();
+      expect(Object.keys(contextAfter).length).toBe(0);
     });
   });
 });

@@ -86,7 +86,7 @@ export class TradingStateMachine {
         from: TradingState.EVALUATING_POOL,
         to: TradingState.IDLE,
         trigger: TradingStateTransition.EVALUATION_COMPLETED,
-        guard: context => !context.tokenAddress || !context.tradeAmount,
+        guard: context => !context.tokenAddress && !context.tradeAmount,
       },
       {
         from: TradingState.EVALUATING_POOL,
@@ -147,7 +147,43 @@ export class TradingStateMachine {
         trigger: TradingStateTransition.TRADE_TIMEOUT,
       },
 
-      // From terminal states back to IDLE
+      // Reset transitions from any state to IDLE
+      {
+        from: TradingState.EVALUATING_POOL,
+        to: TradingState.IDLE,
+        trigger: TradingStateTransition.RESET,
+        action: context => {
+          this.logger.info('Trading cycle reset from EVALUATING_POOL');
+          this.resetContext();
+        },
+      },
+      {
+        from: TradingState.PREPARING_TRADE,
+        to: TradingState.IDLE,
+        trigger: TradingStateTransition.RESET,
+        action: context => {
+          this.logger.info('Trading cycle reset from PREPARING_TRADE');
+          this.resetContext();
+        },
+      },
+      {
+        from: TradingState.EXECUTING_TRADE,
+        to: TradingState.IDLE,
+        trigger: TradingStateTransition.RESET,
+        action: context => {
+          this.logger.info('Trading cycle reset from EXECUTING_TRADE');
+          this.resetContext();
+        },
+      },
+      {
+        from: TradingState.CONFIRMING_TRADE,
+        to: TradingState.IDLE,
+        trigger: TradingStateTransition.RESET,
+        action: context => {
+          this.logger.info('Trading cycle reset from CONFIRMING_TRADE');
+          this.resetContext();
+        },
+      },
       {
         from: TradingState.TRADE_COMPLETED,
         to: TradingState.IDLE,

@@ -208,6 +208,21 @@ export interface MarketMonitoringConfig {
   };
 }
 
+export interface RiskManagementConfig {
+  enabled: boolean;
+  maxTotalExposure: number; // Maximum total USD exposure across all positions
+  maxSinglePositionSize: number; // Maximum USD size for a single position
+  maxPortfolioPercentage: number; // Maximum percentage of portfolio per position
+  maxConcentrationRisk: number; // Maximum percentage in correlated assets
+  maxDailyLoss: number; // Maximum daily loss before circuit breaker
+  maxDrawdown: number; // Maximum drawdown percentage before shutdown
+  volatilityMultiplier: number; // Position size adjustment based on volatility
+  correlationThreshold: number; // Correlation threshold for risk grouping
+  rebalanceThreshold: number; // Threshold for automatic rebalancing
+  riskAssessmentInterval: number; // Milliseconds between risk assessments
+  emergencyExitThreshold: number; // Emergency exit threshold percentage
+}
+
 export interface AppConfig {
   rpc: RpcConfig;
   supportedDexes: DexConfig[];
@@ -217,6 +232,7 @@ export interface AppConfig {
   database: DatabaseConfig;
   notifications?: NotificationConfig;
   marketMonitoring?: MarketMonitoringConfig;
+  riskManagement?: RiskManagementConfig;
   dryRun: boolean;
   verbose: boolean;
   disableTui: boolean;
@@ -235,6 +251,7 @@ export interface FlexibleAppConfig {
   database?: Partial<DatabaseConfig>;
   notifications?: Partial<NotificationConfig>;
   marketMonitoring?: Partial<MarketMonitoringConfig>;
+  riskManagement?: Partial<RiskManagementConfig>;
   dryRun?: boolean;
   verbose?: boolean;
   disableTui?: boolean;

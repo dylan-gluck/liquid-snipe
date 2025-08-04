@@ -31,3 +31,16 @@ export {
   type StorageResult,
   type IntegrityCheckResult
 } from './encrypted-storage';
+
+export {
+  RiskManager,
+  type RiskConfig,
+  type RiskAssessment,
+  type ExposureAnalysis,
+  type CorrelationRisk,
+  type VolatilityRisk,
+  type LiquidityRisk,
+  type RiskRecommendation,
+  type RiskMetrics,
+  type RiskAlert
+} from './risk-manager';

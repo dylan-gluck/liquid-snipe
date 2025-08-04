@@ -252,6 +252,20 @@ const defaultConfig: AppConfig = {
       monitoringPeriod: 300000, // 5 minute monitoring period
     },
   },
+  riskManagement: {
+    enabled: true,
+    maxTotalExposure: 10000, // $10,000 maximum total exposure
+    maxSinglePositionSize: 1000, // $1,000 maximum single position
+    maxPortfolioPercentage: 50, // 50% maximum portfolio exposure
+    maxConcentrationRisk: 30, // 30% maximum in correlated assets
+    maxDailyLoss: 500, // $500 maximum daily loss
+    maxDrawdown: 20, // 20% maximum drawdown
+    volatilityMultiplier: 0.5, // Reduce position size by volatility * 0.5
+    correlationThreshold: 0.7, // 70% correlation threshold
+    rebalanceThreshold: 10, // 10% rebalance threshold
+    riskAssessmentInterval: 60000, // Assess risk every minute
+    emergencyExitThreshold: 15, // 15% emergency exit threshold
+  },
   activeStrategy: 'default',
   logLevel: 'info',
   pollingInterval: 1000, // 1 second

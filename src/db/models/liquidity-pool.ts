@@ -33,10 +33,10 @@ export class LiquidityPoolModel implements LiquidityPool {
     tokenA: string,
     tokenB: string,
     initialLiquidityUsd: number,
-    options: Partial<LiquidityPool> = {}
+    options: Partial<LiquidityPool> = {},
   ): LiquidityPoolModel {
     const now = Date.now();
-    
+
     return new LiquidityPoolModel({
       address,
       dexName,

@@ -36,7 +36,7 @@ export function deepMerge<T extends Record<string, any>>(target: T, source: Part
       return;
     }
 
-    // For primitive values or if targetValue is not an object, 
+    // For primitive values or if targetValue is not an object,
     // use the source value directly
     if (sourceValue !== undefined) {
       output[key] = sourceValue;

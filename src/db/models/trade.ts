@@ -40,7 +40,7 @@ export class TradeModel implements Trade {
     amount: number,
     price: number,
     txSignature: string,
-    options: Partial<Trade> = {}
+    options: Partial<Trade> = {},
   ): TradeModel {
     return new TradeModel({
       id: options.id || uuidv4(),
@@ -66,7 +66,7 @@ export class TradeModel implements Trade {
     amount: number,
     price: number,
     txSignature: string,
-    options: Partial<Trade> = {}
+    options: Partial<Trade> = {},
   ): TradeModel {
     return new TradeModel({
       id: options.id || uuidv4(),

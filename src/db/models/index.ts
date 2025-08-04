@@ -3,12 +3,7 @@ import LiquidityPoolModel from './liquidity-pool';
 import TradeModel from './trade';
 import PositionModel from './position';
 
-export {
-  TokenModel,
-  LiquidityPoolModel,
-  TradeModel,
-  PositionModel,
-};
+export { TokenModel, LiquidityPoolModel, TradeModel, PositionModel };
 
 export default {
   Token: TokenModel,

@@ -80,11 +80,11 @@ export interface DeveloperActivityExitParams {
   exitOnSellPercentage?: number;
 }
 
-export type ExitStrategyParams = 
-  | ProfitExitParams 
-  | TimeExitParams 
-  | LossExitParams 
-  | LiquidityExitParams 
+export type ExitStrategyParams =
+  | ProfitExitParams
+  | TimeExitParams
+  | LossExitParams
+  | LiquidityExitParams
   | DeveloperActivityExitParams;
 
 export interface ExitStrategyConfig {

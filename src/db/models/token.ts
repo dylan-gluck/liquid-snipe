@@ -59,10 +59,10 @@ export class TokenModel implements Token {
    */
   public toString(): string {
     const parts = [this.address];
-    
+
     if (this.symbol) parts.push(this.symbol);
     if (this.name) parts.push(this.name);
-    
+
     return parts.join(' - ');
   }
 
@@ -74,11 +74,11 @@ export class TokenModel implements Token {
     if (updates.name !== undefined) this.name = updates.name;
     if (updates.decimals !== undefined) this.decimals = updates.decimals;
     if (updates.isVerified !== undefined) this.isVerified = updates.isVerified;
-    
+
     if (updates.metadata) {
       this.metadata = { ...this.metadata, ...updates.metadata };
     }
-    
+
     return this;
   }
 }

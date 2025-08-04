@@ -43,7 +43,7 @@ export class SolanaUtils {
    */
   async getAccountInfo(
     publicKey: PublicKey | string,
-    commitment?: Commitment
+    commitment?: Commitment,
   ): Promise<AccountInfo<Buffer> | null> {
     const pubkey = typeof publicKey === 'string' ? new PublicKey(publicKey) : publicKey;
     return await this.connection.getAccountInfo(pubkey, commitment);
@@ -54,7 +54,7 @@ export class SolanaUtils {
    */
   async getParsedAccountInfo(
     publicKey: PublicKey | string,
-    commitment?: Commitment
+    commitment?: Commitment,
   ): Promise<AccountInfo<ParsedAccountData | Buffer> | null> {
     const pubkey = typeof publicKey === 'string' ? new PublicKey(publicKey) : publicKey;
     const response = await this.connection.getParsedAccountInfo(pubkey, commitment);
@@ -66,14 +66,12 @@ export class SolanaUtils {
    */
   async getMultipleAccounts(
     publicKeys: (PublicKey | string)[],
-    commitment?: Commitment
+    commitment?: Commitment,
   ): Promise<AccountData[]> {
-    const pubkeys = publicKeys.map(pk => 
-      typeof pk === 'string' ? new PublicKey(pk) : pk
-    );
-    
+    const pubkeys = publicKeys.map(pk => (typeof pk === 'string' ? new PublicKey(pk) : pk));
+
     const response = await this.connection.getMultipleAccountsInfo(pubkeys, commitment);
-    
+
     return response.map((accountInfo, index) => ({
       address: pubkeys[index].toString(),
       data: accountInfo,
@@ -85,11 +83,11 @@ export class SolanaUtils {
    */
   async getProgramAccounts(
     programId: PublicKey | string,
-    config?: GetProgramAccountsConfig
+    config?: GetProgramAccountsConfig,
   ): Promise<AccountData[]> {
     const pubkey = typeof programId === 'string' ? new PublicKey(programId) : programId;
     const accounts = await this.connection.getProgramAccounts(pubkey, config);
-    
+
     return accounts.map(account => ({
       address: account.pubkey.toString(),
       data: account.account,
@@ -102,21 +100,23 @@ export class SolanaUtils {
   async getTokenAccountsByOwner(
     owner: PublicKey | string,
     filter?: { mint?: PublicKey | string; programId?: PublicKey | string },
-    commitment?: Commitment
+    commitment?: Commitment,
   ): Promise<TokenAccountInfo[]> {
     const ownerPubkey = typeof owner === 'string' ? new PublicKey(owner) : owner;
-    
-    let filterConfig: any = {};
+
+    const filterConfig: any = {};
     if (filter?.mint) {
-      filterConfig.mint = typeof filter.mint === 'string' ? new PublicKey(filter.mint) : filter.mint;
+      filterConfig.mint =
+        typeof filter.mint === 'string' ? new PublicKey(filter.mint) : filter.mint;
     } else if (filter?.programId) {
-      filterConfig.programId = typeof filter.programId === 'string' ? new PublicKey(filter.programId) : filter.programId;
+      filterConfig.programId =
+        typeof filter.programId === 'string' ? new PublicKey(filter.programId) : filter.programId;
     }
 
     const response = await this.connection.getParsedTokenAccountsByOwner(
       ownerPubkey,
       filterConfig,
-      commitment
+      commitment,
     );
 
     return response.value.map(accountInfo => {
@@ -136,7 +136,7 @@ export class SolanaUtils {
    */
   async getTransaction(
     signature: string,
-    commitment?: Commitment
+    commitment?: Commitment,
   ): Promise<ParsedTransactionWithMeta | null> {
     return await this.connection.getParsedTransaction(signature, {
       commitment: commitment as Finality,
@@ -149,7 +149,7 @@ export class SolanaUtils {
    */
   async getTransactions(
     signatures: string[],
-    commitment?: Commitment
+    commitment?: Commitment,
   ): Promise<(ParsedTransactionWithMeta | null)[]> {
     const promises = signatures.map(sig => this.getTransaction(sig, commitment));
     return await Promise.all(promises);
@@ -160,20 +160,14 @@ export class SolanaUtils {
    */
   async sendAndConfirmTransaction(
     transaction: Transaction,
-    commitment: Commitment = 'confirmed'
+    commitment: Commitment = 'confirmed',
   ): Promise<TransactionResult> {
-    const signature = await this.connection.sendRawTransaction(
-      transaction.serialize(),
-      {
-        skipPreflight: false,
-        preflightCommitment: commitment,
-      }
-    );
+    const signature = await this.connection.sendRawTransaction(transaction.serialize(), {
+      skipPreflight: false,
+      preflightCommitment: commitment,
+    });
 
-    const confirmation = await this.connection.confirmTransaction(
-      signature,
-      commitment
-    );
+    const confirmation = await this.connection.confirmTransaction(signature, commitment);
 
     const result: TransactionResult = {
       signature,
@@ -201,27 +195,28 @@ export class SolanaUtils {
   async waitForConfirmation(
     signature: string,
     commitment: Commitment = 'confirmed',
-    timeout: number = 60000
+    timeout: number = 60000,
   ): Promise<SignatureResult> {
     const start = Date.now();
-    
+
     while (Date.now() - start < timeout) {
       try {
         const result = await this.connection.getSignatureStatus(signature);
-        
+
         if (result.value) {
           const confirmationStatus = result.value.confirmationStatus;
-          
+
           // Check if we've reached the desired commitment level
           if (
             commitment === 'processed' ||
-            (commitment === 'confirmed' && (confirmationStatus === 'confirmed' || confirmationStatus === 'finalized')) ||
+            (commitment === 'confirmed' &&
+              (confirmationStatus === 'confirmed' || confirmationStatus === 'finalized')) ||
             (commitment === 'finalized' && confirmationStatus === 'finalized')
           ) {
             return result.value;
           }
         }
-        
+
         // Wait before checking again
         await new Promise(resolve => setTimeout(resolve, 1000));
       } catch (error) {
@@ -229,7 +224,7 @@ export class SolanaUtils {
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
-    
+
     throw new Error(`Transaction confirmation timeout after ${timeout}ms`);
   }
 
@@ -271,7 +266,7 @@ export class SolanaUtils {
   subscribeToAccount(
     publicKey: PublicKey | string,
     callback: (accountInfo: AccountInfo<Buffer>, context: { slot: number }) => void,
-    commitment?: Commitment
+    commitment?: Commitment,
   ): number {
     const pubkey = typeof publicKey === 'string' ? new PublicKey(publicKey) : publicKey;
     return this.connection.onAccountChange(pubkey, callback, commitment);
@@ -282,17 +277,15 @@ export class SolanaUtils {
    */
   subscribeToProgramAccounts(
     programId: PublicKey | string,
-    callback: (keyedAccountInfo: { accountId: PublicKey; accountInfo: AccountInfo<Buffer> }, context: { slot: number }) => void,
+    callback: (
+      keyedAccountInfo: { accountId: PublicKey; accountInfo: AccountInfo<Buffer> },
+      context: { slot: number },
+    ) => void,
     commitment?: Commitment,
-    filters?: any[]
+    filters?: any[],
   ): number {
     const pubkey = typeof programId === 'string' ? new PublicKey(programId) : programId;
-    return this.connection.onProgramAccountChange(
-      pubkey,
-      callback,
-      commitment,
-      filters
-    );
+    return this.connection.onProgramAccountChange(pubkey, callback, commitment, filters);
   }
 
   /**
@@ -300,8 +293,11 @@ export class SolanaUtils {
    */
   subscribeToLogs(
     filter: 'all' | 'allWithVotes' | { mentions: string[] } | PublicKey,
-    callback: (logs: { signature: string; err: any; logs: string[] }, context: { slot: number }) => void,
-    commitment?: Commitment
+    callback: (
+      logs: { signature: string; err: any; logs: string[] },
+      context: { slot: number },
+    ) => void,
+    commitment?: Commitment,
   ): number {
     return this.connection.onLogs(filter as any, callback, commitment);
   }

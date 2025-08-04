@@ -26,6 +26,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@metaplex-foundation/mpl-token-metadata": "^3.4.0",
     "@solana/web3.js": "^1.87.6",
     "blessed": "^0.1.81",
     "commander": "^11.1.0",

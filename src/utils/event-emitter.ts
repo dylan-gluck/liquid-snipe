@@ -9,7 +9,7 @@ import { EventMap, EventName, EventHandler } from '../events/types';
 /**
  * Legacy EventEmitter class that now just wraps the newer EventManager.
  * This is maintained for backwards compatibility.
- * 
+ *
  * @deprecated Use the EventManager from the events module instead.
  */
 export class EventEmitter {
@@ -18,7 +18,7 @@ export class EventEmitter {
   constructor() {
     // Create a new event manager
     this.eventManager = new EventManager();
-    
+
     // Print a deprecation warning
     console.warn(`
       ⚠️ The EventEmitter class is deprecated and will be removed in a future version.

@@ -31,15 +31,18 @@ export class DatabaseManager {
   private backupInterval?: NodeJS.Timeout;
   private dbVersion = 1; // Current schema version
 
-  constructor(dbPath: string, private options: {
-    verbose?: boolean;
-    backupIntervalHours?: number;
-    maxBackups?: number;
-    logToDatabase?: boolean;
-  } = {}) {
+  constructor(
+    dbPath: string,
+    private options: {
+      verbose?: boolean;
+      backupIntervalHours?: number;
+      maxBackups?: number;
+      logToDatabase?: boolean;
+    } = {},
+  ) {
     this.dbPath = dbPath;
     this.logger = new Logger('DatabaseManager', { verbose: options.verbose || false });
-    
+
     // Ensure the directory exists
     const dbDir = path.dirname(dbPath);
     if (!fs.existsSync(dbDir)) {
@@ -82,12 +85,12 @@ export class DatabaseManager {
       await this.createVersionTable();
       await this.checkAndMigrateSchema();
       await this.createSchema();
-      
+
       // Start backup timer if configured
       if (this.options.backupIntervalHours && this.options.backupIntervalHours > 0) {
         this.setupBackupSchedule();
       }
-      
+
       this.initialized = true;
       this.logger.info('Database initialized successfully');
     } catch (err) {
@@ -99,73 +102,90 @@ export class DatabaseManager {
 
   private async createVersionTable(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.db.run(`
+      this.db.run(
+        `
         CREATE TABLE IF NOT EXISTS schema_version (
           id INTEGER PRIMARY KEY CHECK (id = 1),
           version INTEGER NOT NULL,
           updated_at INTEGER NOT NULL
         )
-      `, (err: Error | null) => {
-        if (err) {
-          reject(new DatabaseError(`Failed to create version table: ${err.message}`));
-        } else {
-          // Check if we need to insert the initial version
-          this.db.get('SELECT version FROM schema_version WHERE id = 1', [], (err, row) => {
-            if (err) {
-              reject(new DatabaseError(`Failed to check schema version: ${err.message}`));
-            } else if (!row) {
-              // Insert initial version
-              this.db.run(
-                'INSERT INTO schema_version (id, version, updated_at) VALUES (1, ?, ?)',
-                [this.dbVersion, Date.now()],
-                (err) => {
-                  if (err) {
-                    reject(new DatabaseError(`Failed to insert initial schema version: ${err.message}`));
-                  } else {
-                    resolve();
-                  }
-                }
-              );
-            } else {
-              resolve();
-            }
-          });
-        }
-      });
+      `,
+        (err: Error | null) => {
+          if (err) {
+            reject(new DatabaseError(`Failed to create version table: ${err.message}`));
+          } else {
+            // Check if we need to insert the initial version
+            this.db.get('SELECT version FROM schema_version WHERE id = 1', [], (err, row) => {
+              if (err) {
+                reject(new DatabaseError(`Failed to check schema version: ${err.message}`));
+              } else if (!row) {
+                // Insert initial version
+                this.db.run(
+                  'INSERT INTO schema_version (id, version, updated_at) VALUES (1, ?, ?)',
+                  [this.dbVersion, Date.now()],
+                  err => {
+                    if (err) {
+                      reject(
+                        new DatabaseError(
+                          `Failed to insert initial schema version: ${err.message}`,
+                        ),
+                      );
+                    } else {
+                      resolve();
+                    }
+                  },
+                );
+              } else {
+                resolve();
+              }
+            });
+          }
+        },
+      );
     });
   }
 
   private async checkAndMigrateSchema(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.db.get('SELECT version FROM schema_version WHERE id = 1', [], async (err, row: { version: number } | undefined) => {
-        if (err) {
-          reject(new DatabaseError(`Failed to check schema version: ${err.message}`));
-          return;
-        }
-        
-        const currentVersion = row ? row.version : 0;
-        
-        if (currentVersion < this.dbVersion) {
-          try {
-            this.logger.info(`Migrating database from version ${currentVersion} to ${this.dbVersion}`);
-            
-            // Run migrations based on current version
-            if (currentVersion < 1) {
-              // Migration to version 1 if needed
-              // await this.migrateToV1();
-            }
-            
-            // Update schema version
-            await this.updateSchemaVersion(this.dbVersion);
-            this.logger.info(`Database migrated to version ${this.dbVersion}`);
-            resolve();
-          } catch (migrateErr) {
-            reject(new MigrationError(`Migration failed: ${migrateErr instanceof Error ? migrateErr.message : String(migrateErr)}`));
+      this.db.get(
+        'SELECT version FROM schema_version WHERE id = 1',
+        [],
+        async (err, row: { version: number } | undefined) => {
+          if (err) {
+            reject(new DatabaseError(`Failed to check schema version: ${err.message}`));
+            return;
           }
-        } else {
-          resolve();
-        }
-      });
+
+          const currentVersion = row ? row.version : 0;
+
+          if (currentVersion < this.dbVersion) {
+            try {
+              this.logger.info(
+                `Migrating database from version ${currentVersion} to ${this.dbVersion}`,
+              );
+
+              // Run migrations based on current version
+              if (currentVersion < 1) {
+                // Migration to version 1 if needed
+                // await this.migrateToV1();
+              }
+
+              // Update schema version
+              await this.updateSchemaVersion(this.dbVersion);
+              this.logger.info(`Database migrated to version ${this.dbVersion}`);
+              resolve();
+            } catch (migrateErr) {
+              reject(
+                new MigrationError(
+                  `Migration failed: ${migrateErr instanceof Error ? migrateErr.message : String(migrateErr)}`,
+                ),
+              );
+            }
+          } else {
+            resolve();
+          }
+        },
+      );
     });
   }
 
@@ -174,20 +194,20 @@ export class DatabaseManager {
       this.db.run(
         'UPDATE schema_version SET version = ?, updated_at = ? WHERE id = 1',
         [version, Date.now()],
-        (err) => {
+        err => {
           if (err) {
             reject(new DatabaseError(`Failed to update schema version: ${err.message}`));
           } else {
             resolve();
           }
-        }
+        },
       );
     });
   }
 
   private setupBackupSchedule(): void {
     const intervalMs = this.options.backupIntervalHours! * 60 * 60 * 1000;
-    
+
     this.backupInterval = setInterval(() => {
       this.createBackup().catch(err => {
         this.logger.error(`Backup failed: ${err.message}`);
@@ -202,97 +222,122 @@ export class DatabaseManager {
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const backupDir = path.join(path.dirname(this.dbPath), 'backups');
-    
+
     if (!fs.existsSync(backupDir)) {
       fs.mkdirSync(backupDir, { recursive: true });
     }
-    
+
     const backupPath = path.join(backupDir, `${path.basename(this.dbPath, '.db')}-${timestamp}.db`);
-    
+
     this.logger.info(`Creating backup at ${backupPath}`);
-    
+
     return new Promise((resolve, reject) => {
       // Create a new database for the backup
-      const backupDb = new sqlite3.Database(backupPath, (err) => {
+      const backupDb = new sqlite3.Database(backupPath, err => {
         if (err) {
           reject(new DatabaseError(`Failed to create backup database: ${err.message}`));
           return;
         }
-        
+
         // Use a more reliable method - export all tables
         this.db.serialize(() => {
           // First try with direct backup command that works in some environments
-          this.db.run(`.backup ${backupPath}`, (err) => {
+          this.db.run(`.backup ${backupPath}`, err => {
             if (err) {
               // If that fails, use a manual approach - attach and copy
-              this.db.run(`ATTACH DATABASE '${backupPath}' AS backup`, (attachErr) => {
+              this.db.run(`ATTACH DATABASE '${backupPath}' AS backup`, attachErr => {
                 if (attachErr) {
                   backupDb.close();
-                  reject(new DatabaseError(`Failed to attach backup database: ${attachErr.message}`));
+                  reject(
+                    new DatabaseError(`Failed to attach backup database: ${attachErr.message}`),
+                  );
                   return;
                 }
-                
+
                 // Get all tables
-                this.db.all("SELECT name FROM sqlite_master WHERE type='table'", [], (tablesErr, tables: Array<{name: string}>) => {
-                  if (tablesErr) {
-                    this.db.run('DETACH DATABASE backup');
-                    backupDb.close();
-                    reject(new DatabaseError(`Failed to get tables: ${tablesErr.message}`));
-                    return;
-                  }
-                  
-                  // Copy the schema and data for each table
-                  const promises = tables.map(table => {
-                    return new Promise<void>((copyResolve, copyReject) => {
-                      const tableName = table.name;
-                      if (tableName === 'sqlite_sequence') {
-                        copyResolve();
-                        return;
-                      }
-                      
-                      this.db.run(`CREATE TABLE backup.${tableName} AS SELECT * FROM main.${tableName}`, (copyErr) => {
-                        if (copyErr) {
-                          copyReject(copyErr);
-                        } else {
-                          copyResolve();
-                        }
-                      });
-                    });
-                  });
-                  
-                  Promise.all(promises)
-                    .then(() => {
-                      this.db.run('DETACH DATABASE backup', (detachErr) => {
-                        backupDb.close();
-                        
-                        if (detachErr) {
-                          reject(new DatabaseError(`Failed to detach backup database: ${detachErr.message}`));
-                        } else {
-                          this.cleanupOldBackups(backupDir).then(() => {
-                            resolve(backupPath);
-                          }).catch(cleanupErr => {
-                            this.logger.warning(`Failed to clean up old backups: ${cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr)}`);
-                            resolve(backupPath);
-                          });
-                        }
-                      });
-                    })
-                    .catch(copyErr => {
+                this.db.all(
+                  "SELECT name FROM sqlite_master WHERE type='table'",
+                  [],
+                  (tablesErr, tables: Array<{ name: string }>) => {
+                    if (tablesErr) {
                       this.db.run('DETACH DATABASE backup');
                       backupDb.close();
-                      reject(new DatabaseError(`Failed to copy data: ${copyErr instanceof Error ? copyErr.message : String(copyErr)}`));
+                      reject(new DatabaseError(`Failed to get tables: ${tablesErr.message}`));
+                      return;
+                    }
+
+                    // Copy the schema and data for each table
+                    const promises = tables.map(table => {
+                      return new Promise<void>((copyResolve, copyReject) => {
+                        const tableName = table.name;
+                        if (tableName === 'sqlite_sequence') {
+                          copyResolve();
+                          return;
+                        }
+
+                        this.db.run(
+                          `CREATE TABLE backup.${tableName} AS SELECT * FROM main.${tableName}`,
+                          copyErr => {
+                            if (copyErr) {
+                              copyReject(copyErr);
+                            } else {
+                              copyResolve();
+                            }
+                          },
+                        );
+                      });
                     });
-                });
+
+                    Promise.all(promises)
+                      .then(() => {
+                        this.db.run('DETACH DATABASE backup', detachErr => {
+                          backupDb.close();
+
+                          if (detachErr) {
+                            reject(
+                              new DatabaseError(
+                                `Failed to detach backup database: ${detachErr.message}`,
+                              ),
+                            );
+                          } else {
+                            this.cleanupOldBackups(backupDir)
+                              .then(() => {
+                                resolve(backupPath);
+                              })
+                              .catch(cleanupErr => {
+                                this.logger.warning(
+                                  `Failed to clean up old backups: ${cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr)}`,
+                                );
+                                resolve(backupPath);
+                              });
+                          }
+                        });
+                      })
+                      .catch(copyErr => {
+                        this.db.run('DETACH DATABASE backup');
+                        backupDb.close();
+                        reject(
+                          new DatabaseError(
+                            `Failed to copy data: ${copyErr instanceof Error ? copyErr.message : String(copyErr)}`,
+                          ),
+                        );
+                      });
+                  },
+                );
               });
             } else {
               // Direct backup succeeded
               backupDb.close();
-              this.cleanupOldBackups(backupDir).then(() => {
-                resolve(backupPath);
-              }).catch(cleanupErr => {
-                this.logger.warning(`Failed to clean up old backups: ${cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr)}`);
-                resolve(backupPath);
-              });
+              this.cleanupOldBackups(backupDir)
+                .then(() => {
+                  resolve(backupPath);
+                })
+                .catch(cleanupErr => {
+                  this.logger.warning(
+                    `Failed to clean up old backups: ${cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr)}`,
+                  );
+                  resolve(backupPath);
+                });
             }
           });
         });
@@ -304,14 +349,14 @@ export class DatabaseManager {
     if (!this.options.maxBackups || this.options.maxBackups <= 0) {
       return;
     }
-    
+
     return new Promise((resolve, reject) => {
       fs.readdir(backupDir, (err, files) => {
         if (err) {
           reject(new Error(`Failed to read backup directory: ${err.message}`));
           return;
         }
-        
+
         // Filter backup files for this database
         const baseDbName = path.basename(this.dbPath, '.db');
         const backupFiles = files
@@ -319,24 +364,26 @@ export class DatabaseManager {
           .map(file => ({
             file,
             path: path.join(backupDir, file),
-            timestamp: fs.statSync(path.join(backupDir, file)).mtime.getTime()
+            timestamp: fs.statSync(path.join(backupDir, file)).mtime.getTime(),
           }))
           .sort((a, b) => b.timestamp - a.timestamp); // Sort by newest first
-        
+
         // Remove older backups beyond the limit
         if (this.options.maxBackups && backupFiles.length > this.options.maxBackups) {
           const filesToDelete = backupFiles.slice(this.options.maxBackups);
-          
+
           filesToDelete.forEach(fileInfo => {
             try {
               fs.unlinkSync(fileInfo.path);
               this.logger.debug(`Deleted old backup: ${fileInfo.file}`);
             } catch (unlinkErr) {
-              this.logger.warning(`Failed to delete old backup ${fileInfo.file}: ${unlinkErr instanceof Error ? unlinkErr.message : String(unlinkErr)}`);
+              this.logger.warning(
+                `Failed to delete old backup ${fileInfo.file}: ${unlinkErr instanceof Error ? unlinkErr.message : String(unlinkErr)}`,
+              );
             }
           });
         }
-        
+
         resolve();
       });
     });
@@ -432,13 +479,15 @@ export class DatabaseManager {
         `);
 
         // Create indexes for better performance
-        this.db.run('CREATE INDEX IF NOT EXISTS idx_liquidity_pools_tokens ON liquidity_pools(token_a, token_b)');
+        this.db.run(
+          'CREATE INDEX IF NOT EXISTS idx_liquidity_pools_tokens ON liquidity_pools(token_a, token_b)',
+        );
         this.db.run('CREATE INDEX IF NOT EXISTS idx_trades_timestamp ON trades(timestamp DESC)');
         this.db.run('CREATE INDEX IF NOT EXISTS idx_positions_status ON positions(status)');
         this.db.run('CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp DESC)');
 
         // Check for any errors
-        this.db.get('SELECT 1', [], (err) => {
+        this.db.get('SELECT 1', [], err => {
           if (err) {
             reject(new DatabaseError(`Failed to create schema: ${err.message}`));
           } else {
@@ -452,7 +501,7 @@ export class DatabaseManager {
   // Utility method to run queries with proper error handling
   private async run(sql: string, params: any[] = []): Promise<sqlite3.RunResult> {
     return new Promise((resolve, reject) => {
-      this.db.run(sql, params, function(err: Error | null) {
+      this.db.run(sql, params, function (err: Error | null) {
         if (err) {
           reject(new DatabaseError(`SQL error (${sql}): ${err.message}`));
         } else {
@@ -495,7 +544,7 @@ export class DatabaseManager {
     }
 
     return new Promise((resolve, reject) => {
-      this.db.run('BEGIN TRANSACTION', async (err) => {
+      this.db.run('BEGIN TRANSACTION', async err => {
         if (err) {
           reject(new DatabaseError(`Failed to begin transaction: ${err.message}`));
           return;
@@ -503,8 +552,8 @@ export class DatabaseManager {
 
         try {
           const result = await callback();
-          
-          this.db.run('COMMIT', (commitErr) => {
+
+          this.db.run('COMMIT', commitErr => {
             if (commitErr) {
               this.db.run('ROLLBACK', () => {
                 reject(new DatabaseError(`Failed to commit transaction: ${commitErr.message}`));
@@ -525,7 +574,7 @@ export class DatabaseManager {
   /************************************
    * Token Operations
    ************************************/
-  
+
   // Add or update token
   public async upsertToken(token: Token): Promise<void> {
     if (!this.initialized) {
@@ -534,7 +583,7 @@ export class DatabaseManager {
 
     const now = Date.now();
     const existingToken = await this.getToken(token.address);
-    
+
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO tokens
       (address, symbol, name, decimals, first_seen, is_verified, metadata, updated_at)
@@ -551,14 +600,14 @@ export class DatabaseManager {
         token.isVerified ? 1 : 0,
         JSON.stringify(token.metadata || {}),
         now,
-        function(err: Error | null) {
+        function (err: Error | null) {
           stmt.finalize();
           if (err) {
             reject(new DatabaseError(`Failed to upsert token: ${err.message}`));
           } else {
             resolve();
           }
-        }
+        },
       );
     });
   }
@@ -586,14 +635,14 @@ export class DatabaseManager {
         token.isVerified ? 1 : 0,
         JSON.stringify(token.metadata || {}),
         now,
-        function(err: Error | null) {
+        function (err: Error | null) {
           stmt.finalize();
           if (err) {
             reject(new DatabaseError(`Failed to add token: ${err.message}`));
           } else {
             resolve();
           }
-        }
+        },
       );
     });
   }
@@ -624,7 +673,7 @@ export class DatabaseManager {
               metadata: JSON.parse(row.metadata || '{}'),
             });
           }
-        }
+        },
       );
     });
   }
@@ -643,17 +692,19 @@ export class DatabaseManager {
           if (err) {
             reject(new DatabaseError(`Failed to get tokens: ${err.message}`));
           } else {
-            resolve(rows.map(row => ({
-              address: row.address,
-              symbol: row.symbol,
-              name: row.name,
-              decimals: row.decimals,
-              firstSeen: row.first_seen,
-              isVerified: !!row.is_verified,
-              metadata: JSON.parse(row.metadata || '{}'),
-            })));
+            resolve(
+              rows.map(row => ({
+                address: row.address,
+                symbol: row.symbol,
+                name: row.name,
+                decimals: row.decimals,
+                firstSeen: row.first_seen,
+                isVerified: !!row.is_verified,
+                metadata: JSON.parse(row.metadata || '{}'),
+              })),
+            );
           }
-        }
+        },
       );
     });
   }
@@ -668,13 +719,13 @@ export class DatabaseManager {
       this.db.run(
         'UPDATE tokens SET is_verified = ?, updated_at = ? WHERE address = ?',
         [isVerified ? 1 : 0, Date.now(), address],
-        function(err: Error | null) {
+        function (err: Error | null) {
           if (err) {
             reject(new DatabaseError(`Failed to update token verification: ${err.message}`));
           } else {
             resolve(this.changes > 0);
           }
-        }
+        },
       );
     });
   }
@@ -682,7 +733,7 @@ export class DatabaseManager {
   /************************************
    * Liquidity Pool Operations
    ************************************/
-  
+
   // Add or update liquidity pool
   public async upsertLiquidityPool(pool: LiquidityPool): Promise<void> {
     if (!this.initialized) {
@@ -705,14 +756,14 @@ export class DatabaseManager {
         pool.initialLiquidityUsd,
         pool.lastUpdated,
         pool.currentLiquidityUsd,
-        function(err: Error | null) {
+        function (err: Error | null) {
           stmt.finalize();
           if (err) {
             reject(new DatabaseError(`Failed to upsert liquidity pool: ${err.message}`));
           } else {
             resolve();
           }
-        }
+        },
       );
     });
   }
@@ -735,7 +786,7 @@ export class DatabaseManager {
           metadata: {},
         });
       }
-      
+
       const tokenB = await this.getToken(pool.tokenB);
       if (!tokenB) {
         await this.addToken({
@@ -746,7 +797,9 @@ export class DatabaseManager {
         });
       }
     } catch (err) {
-      this.logger.warning(`Failed to ensure tokens exist for pool ${pool.address}: ${err instanceof Error ? err.message : String(err)}`);
+      this.logger.warning(
+        `Failed to ensure tokens exist for pool ${pool.address}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
 
     const stmt = this.db.prepare(`
@@ -765,14 +818,14 @@ export class DatabaseManager {
         pool.initialLiquidityUsd,
         pool.lastUpdated,
         pool.currentLiquidityUsd,
-        function(err: Error | null) {
+        function (err: Error | null) {
           stmt.finalize();
           if (err) {
             reject(new DatabaseError(`Failed to add liquidity pool: ${err.message}`));
           } else {
             resolve();
           }
-        }
+        },
       );
     });
   }
@@ -804,7 +857,7 @@ export class DatabaseManager {
               currentLiquidityUsd: row.current_liquidity_usd,
             });
           }
-        }
+        },
       );
     });
   }
@@ -823,18 +876,20 @@ export class DatabaseManager {
           if (err) {
             reject(new DatabaseError(`Failed to get liquidity pools: ${err.message}`));
           } else {
-            resolve(rows.map(row => ({
-              address: row.address,
-              dexName: row.dex_name,
-              tokenA: row.token_a,
-              tokenB: row.token_b,
-              createdAt: row.created_at,
-              initialLiquidityUsd: row.initial_liquidity_usd,
-              lastUpdated: row.last_updated,
-              currentLiquidityUsd: row.current_liquidity_usd,
-            })));
+            resolve(
+              rows.map(row => ({
+                address: row.address,
+                dexName: row.dex_name,
+                tokenA: row.token_a,
+                tokenB: row.token_b,
+                createdAt: row.created_at,
+                initialLiquidityUsd: row.initial_liquidity_usd,
+                lastUpdated: row.last_updated,
+                currentLiquidityUsd: row.current_liquidity_usd,
+              })),
+            );
           }
-        }
+        },
       );
     });
   }
@@ -853,18 +908,20 @@ export class DatabaseManager {
           if (err) {
             reject(new DatabaseError(`Failed to get pools for token: ${err.message}`));
           } else {
-            resolve(rows.map(row => ({
-              address: row.address,
-              dexName: row.dex_name,
-              tokenA: row.token_a,
-              tokenB: row.token_b,
-              createdAt: row.created_at,
-              initialLiquidityUsd: row.initial_liquidity_usd,
-              lastUpdated: row.last_updated,
-              currentLiquidityUsd: row.current_liquidity_usd,
-            })));
+            resolve(
+              rows.map(row => ({
+                address: row.address,
+                dexName: row.dex_name,
+                tokenA: row.token_a,
+                tokenB: row.token_b,
+                createdAt: row.created_at,
+                initialLiquidityUsd: row.initial_liquidity_usd,
+                lastUpdated: row.last_updated,
+                currentLiquidityUsd: row.current_liquidity_usd,
+              })),
+            );
           }
-        }
+        },
       );
     });
   }
@@ -879,13 +936,13 @@ export class DatabaseManager {
       this.db.run(
         'UPDATE liquidity_pools SET current_liquidity_usd = ?, last_updated = ? WHERE address = ?',
         [currentLiquidity, Date.now(), address],
-        function(err: Error | null) {
+        function (err: Error | null) {
           if (err) {
             reject(new DatabaseError(`Failed to update pool liquidity: ${err.message}`));
           } else {
             resolve(this.changes > 0);
           }
-        }
+        },
       );
     });
   }
@@ -893,7 +950,7 @@ export class DatabaseManager {
   /************************************
    * Trade Operations
    ************************************/
-  
+
   // Add a new trade
   public async addTrade(trade: Trade): Promise<void> {
     if (!this.initialized) {
@@ -903,7 +960,7 @@ export class DatabaseManager {
     // Ensure the trade has an ID
     const tradeWithId = {
       ...trade,
-      id: trade.id || uuidv4()
+      id: trade.id || uuidv4(),
     };
 
     const stmt = this.db.prepare(`
@@ -925,14 +982,14 @@ export class DatabaseManager {
         tradeWithId.timestamp,
         tradeWithId.txSignature,
         tradeWithId.status,
-        function(err: Error | null) {
+        function (err: Error | null) {
           stmt.finalize();
           if (err) {
             reject(new DatabaseError(`Failed to add trade: ${err.message}`));
           } else {
             resolve();
           }
-        }
+        },
       );
     });
   }
@@ -944,31 +1001,27 @@ export class DatabaseManager {
     }
 
     return new Promise((resolve, reject) => {
-      this.db.get(
-        'SELECT * FROM trades WHERE id = ?',
-        [id],
-        (err: Error | null, row: any) => {
-          if (err) {
-            reject(new DatabaseError(`Failed to get trade: ${err.message}`));
-          } else if (!row) {
-            resolve(null);
-          } else {
-            resolve({
-              id: row.id,
-              poolAddress: row.pool_address,
-              tokenAddress: row.token_address,
-              direction: row.direction as 'BUY' | 'SELL',
-              amount: row.amount,
-              price: row.price,
-              valueUsd: row.value_usd,
-              gasFeeUsd: row.gas_fee_usd,
-              timestamp: row.timestamp,
-              txSignature: row.tx_signature,
-              status: row.status as 'PENDING' | 'CONFIRMED' | 'FAILED',
-            });
-          }
+      this.db.get('SELECT * FROM trades WHERE id = ?', [id], (err: Error | null, row: any) => {
+        if (err) {
+          reject(new DatabaseError(`Failed to get trade: ${err.message}`));
+        } else if (!row) {
+          resolve(null);
+        } else {
+          resolve({
+            id: row.id,
+            poolAddress: row.pool_address,
+            tokenAddress: row.token_address,
+            direction: row.direction as 'BUY' | 'SELL',
+            amount: row.amount,
+            price: row.price,
+            valueUsd: row.value_usd,
+            gasFeeUsd: row.gas_fee_usd,
+            timestamp: row.timestamp,
+            txSignature: row.tx_signature,
+            status: row.status as 'PENDING' | 'CONFIRMED' | 'FAILED',
+          });
         }
-      );
+      });
     });
   }
 
@@ -986,27 +1039,32 @@ export class DatabaseManager {
           if (err) {
             reject(new DatabaseError(`Failed to get trades for token: ${err.message}`));
           } else {
-            resolve(rows.map(row => ({
-              id: row.id,
-              poolAddress: row.pool_address,
-              tokenAddress: row.token_address,
-              direction: row.direction as 'BUY' | 'SELL',
-              amount: row.amount,
-              price: row.price,
-              valueUsd: row.value_usd,
-              gasFeeUsd: row.gas_fee_usd,
-              timestamp: row.timestamp,
-              txSignature: row.tx_signature,
-              status: row.status as 'PENDING' | 'CONFIRMED' | 'FAILED',
-            })));
+            resolve(
+              rows.map(row => ({
+                id: row.id,
+                poolAddress: row.pool_address,
+                tokenAddress: row.token_address,
+                direction: row.direction as 'BUY' | 'SELL',
+                amount: row.amount,
+                price: row.price,
+                valueUsd: row.value_usd,
+                gasFeeUsd: row.gas_fee_usd,
+                timestamp: row.timestamp,
+                txSignature: row.tx_signature,
+                status: row.status as 'PENDING' | 'CONFIRMED' | 'FAILED',
+              })),
+            );
           }
-        }
+        },
       );
     });
   }
 
   // Update trade status
-  public async updateTradeStatus(id: string, status: 'PENDING' | 'CONFIRMED' | 'FAILED'): Promise<boolean> {
+  public async updateTradeStatus(
+    id: string,
+    status: 'PENDING' | 'CONFIRMED' | 'FAILED',
+  ): Promise<boolean> {
     if (!this.initialized) {
       await this.initialize();
     }
@@ -1015,13 +1073,13 @@ export class DatabaseManager {
       this.db.run(
         'UPDATE trades SET status = ? WHERE id = ?',
         [status, id],
-        function(err: Error | null) {
+        function (err: Error | null) {
           if (err) {
             reject(new DatabaseError(`Failed to update trade status: ${err.message}`));
           } else {
             resolve(this.changes > 0);
           }
-        }
+        },
       );
     });
   }
@@ -1029,7 +1087,7 @@ export class DatabaseManager {
   /************************************
    * Position Operations
    ************************************/
-  
+
   // Add a new position
   public async addPosition(position: Position): Promise<void> {
     if (!this.initialized) {
@@ -1039,7 +1097,7 @@ export class DatabaseManager {
     // Ensure the position has an ID
     const positionWithId = {
       ...position,
-      id: position.id || uuidv4()
+      id: position.id || uuidv4(),
     };
 
     const stmt = this.db.prepare(`
@@ -1064,14 +1122,14 @@ export class DatabaseManager {
         positionWithId.pnlUsd || null,
         positionWithId.pnlPercent || null,
         Date.now(),
-        function(err: Error | null) {
+        function (err: Error | null) {
           stmt.finalize();
           if (err) {
             reject(new DatabaseError(`Failed to add position: ${err.message}`));
           } else {
             resolve();
           }
-        }
+        },
       );
     });
   }
@@ -1083,32 +1141,28 @@ export class DatabaseManager {
     }
 
     return new Promise((resolve, reject) => {
-      this.db.get(
-        'SELECT * FROM positions WHERE id = ?',
-        [id],
-        (err: Error | null, row: any) => {
-          if (err) {
-            reject(new DatabaseError(`Failed to get position: ${err.message}`));
-          } else if (!row) {
-            resolve(null);
-          } else {
-            resolve({
-              id: row.id,
-              tokenAddress: row.token_address,
-              entryPrice: row.entry_price,
-              amount: row.amount,
-              openTimestamp: row.open_timestamp,
-              closeTimestamp: row.close_timestamp,
-              entryTradeId: row.entry_trade_id,
-              exitTradeId: row.exit_trade_id,
-              exitStrategy: JSON.parse(row.exit_strategy),
-              status: row.status as 'OPEN' | 'CLOSED',
-              pnlUsd: row.pnl_usd,
-              pnlPercent: row.pnl_percent,
-            });
-          }
+      this.db.get('SELECT * FROM positions WHERE id = ?', [id], (err: Error | null, row: any) => {
+        if (err) {
+          reject(new DatabaseError(`Failed to get position: ${err.message}`));
+        } else if (!row) {
+          resolve(null);
+        } else {
+          resolve({
+            id: row.id,
+            tokenAddress: row.token_address,
+            entryPrice: row.entry_price,
+            amount: row.amount,
+            openTimestamp: row.open_timestamp,
+            closeTimestamp: row.close_timestamp,
+            entryTradeId: row.entry_trade_id,
+            exitTradeId: row.exit_trade_id,
+            exitStrategy: JSON.parse(row.exit_strategy),
+            status: row.status as 'OPEN' | 'CLOSED',
+            pnlUsd: row.pnl_usd,
+            pnlPercent: row.pnl_percent,
+          });
         }
-      );
+      });
     });
   }
 
@@ -1126,22 +1180,24 @@ export class DatabaseManager {
           if (err) {
             reject(new DatabaseError(`Failed to get open positions: ${err.message}`));
           } else {
-            resolve(rows.map(row => ({
-              id: row.id,
-              tokenAddress: row.token_address,
-              entryPrice: row.entry_price,
-              amount: row.amount,
-              openTimestamp: row.open_timestamp,
-              closeTimestamp: row.close_timestamp,
-              entryTradeId: row.entry_trade_id,
-              exitTradeId: row.exit_trade_id,
-              exitStrategy: JSON.parse(row.exit_strategy),
-              status: row.status as 'OPEN' | 'CLOSED',
-              pnlUsd: row.pnl_usd,
-              pnlPercent: row.pnl_percent,
-            })));
+            resolve(
+              rows.map(row => ({
+                id: row.id,
+                tokenAddress: row.token_address,
+                entryPrice: row.entry_price,
+                amount: row.amount,
+                openTimestamp: row.open_timestamp,
+                closeTimestamp: row.close_timestamp,
+                entryTradeId: row.entry_trade_id,
+                exitTradeId: row.exit_trade_id,
+                exitStrategy: JSON.parse(row.exit_strategy),
+                status: row.status as 'OPEN' | 'CLOSED',
+                pnlUsd: row.pnl_usd,
+                pnlPercent: row.pnl_percent,
+              })),
+            );
           }
-        }
+        },
       );
     });
   }
@@ -1160,28 +1216,36 @@ export class DatabaseManager {
           if (err) {
             reject(new DatabaseError(`Failed to get closed positions: ${err.message}`));
           } else {
-            resolve(rows.map(row => ({
-              id: row.id,
-              tokenAddress: row.token_address,
-              entryPrice: row.entry_price,
-              amount: row.amount,
-              openTimestamp: row.open_timestamp,
-              closeTimestamp: row.close_timestamp,
-              entryTradeId: row.entry_trade_id,
-              exitTradeId: row.exit_trade_id,
-              exitStrategy: JSON.parse(row.exit_strategy),
-              status: row.status as 'OPEN' | 'CLOSED',
-              pnlUsd: row.pnl_usd,
-              pnlPercent: row.pnl_percent,
-            })));
+            resolve(
+              rows.map(row => ({
+                id: row.id,
+                tokenAddress: row.token_address,
+                entryPrice: row.entry_price,
+                amount: row.amount,
+                openTimestamp: row.open_timestamp,
+                closeTimestamp: row.close_timestamp,
+                entryTradeId: row.entry_trade_id,
+                exitTradeId: row.exit_trade_id,
+                exitStrategy: JSON.parse(row.exit_strategy),
+                status: row.status as 'OPEN' | 'CLOSED',
+                pnlUsd: row.pnl_usd,
+                pnlPercent: row.pnl_percent,
+              })),
+            );
           }
-        }
+        },
       );
     });
   }
 
   // Close a position
-  public async closePosition(id: string, exitTradeId: string, closeTimestamp: number, pnlUsd: number, pnlPercent: number): Promise<boolean> {
+  public async closePosition(
+    id: string,
+    exitTradeId: string,
+    closeTimestamp: number,
+    pnlUsd: number,
+    pnlPercent: number,
+  ): Promise<boolean> {
     if (!this.initialized) {
       await this.initialize();
     }
@@ -1197,13 +1261,13 @@ export class DatabaseManager {
          updated_at = ?
          WHERE id = ? AND status = 'OPEN'`,
         [exitTradeId, closeTimestamp, pnlUsd, pnlPercent, Date.now(), id],
-        function(err: Error | null) {
+        function (err: Error | null) {
           if (err) {
             reject(new DatabaseError(`Failed to close position: ${err.message}`));
           } else {
             resolve(this.changes > 0);
           }
-        }
+        },
       );
     });
   }
@@ -1211,7 +1275,7 @@ export class DatabaseManager {
   /************************************
    * Event Logging Operations
    ************************************/
-  
+
   // Add a log event to the database
   public async addLogEvent(event: LogEvent): Promise<void> {
     if (!this.initialized) {
@@ -1233,14 +1297,14 @@ export class DatabaseManager {
     return new Promise((resolve, reject) => {
       const contextMatch = event.message.match(/^\[(.*?)\]/);
       const context = contextMatch ? contextMatch[1] : null;
-      
+
       stmt.run(
         event.level,
         event.message,
         event.timestamp,
         event.data ? JSON.stringify(event.data) : null,
         context,
-        function(err: Error | null) {
+        function (err: Error | null) {
           stmt.finalize();
           if (err) {
             console.error(`Failed to add log event: ${err.message}`);
@@ -1248,7 +1312,7 @@ export class DatabaseManager {
           } else {
             resolve();
           }
-        }
+        },
       );
     });
   }
@@ -1259,29 +1323,27 @@ export class DatabaseManager {
       await this.initialize();
     }
 
-    const query = level 
+    const query = level
       ? 'SELECT * FROM events WHERE level = ? ORDER BY timestamp DESC LIMIT ?'
       : 'SELECT * FROM events ORDER BY timestamp DESC LIMIT ?';
-    
+
     const params = level ? [level, limit] : [limit];
 
     return new Promise((resolve, reject) => {
-      this.db.all(
-        query,
-        params,
-        (err: Error | null, rows: any[]) => {
-          if (err) {
-            reject(new DatabaseError(`Failed to get log events: ${err.message}`));
-          } else {
-            resolve(rows.map(row => ({
+      this.db.all(query, params, (err: Error | null, rows: any[]) => {
+        if (err) {
+          reject(new DatabaseError(`Failed to get log events: ${err.message}`));
+        } else {
+          resolve(
+            rows.map(row => ({
               level: row.level as LogEvent['level'],
               message: row.message,
               timestamp: row.timestamp,
               data: row.data ? JSON.parse(row.data) : undefined,
-            })));
-          }
+            })),
+          );
         }
-      );
+      });
     });
   }
 
@@ -1291,19 +1353,19 @@ export class DatabaseManager {
       await this.initialize();
     }
 
-    const cutoffTimestamp = Date.now() - (olderThanDays * 24 * 60 * 60 * 1000);
+    const cutoffTimestamp = Date.now() - olderThanDays * 24 * 60 * 60 * 1000;
 
     return new Promise((resolve, reject) => {
       this.db.run(
         'DELETE FROM events WHERE timestamp < ?',
         [cutoffTimestamp],
-        function(err: Error | null) {
+        function (err: Error | null) {
           if (err) {
             reject(new DatabaseError(`Failed to prune old log events: ${err.message}`));
           } else {
             resolve(this.changes);
           }
-        }
+        },
       );
     });
   }
@@ -1311,7 +1373,7 @@ export class DatabaseManager {
   /************************************
    * Database Management
    ************************************/
-  
+
   // Close the database connection
   public async close(): Promise<void> {
     if (this.backupInterval) {
@@ -1348,14 +1410,22 @@ export class DatabaseManager {
 
     try {
       const tokenCount = await this.get<{ count: number }>('SELECT COUNT(*) as count FROM tokens');
-      const poolCount = await this.get<{ count: number }>('SELECT COUNT(*) as count FROM liquidity_pools');
+      const poolCount = await this.get<{ count: number }>(
+        'SELECT COUNT(*) as count FROM liquidity_pools',
+      );
       const tradeCount = await this.get<{ count: number }>('SELECT COUNT(*) as count FROM trades');
-      const openPositionCount = await this.get<{ count: number }>('SELECT COUNT(*) as count FROM positions WHERE status = ?', ['OPEN']);
-      const closedPositionCount = await this.get<{ count: number }>('SELECT COUNT(*) as count FROM positions WHERE status = ?', ['CLOSED']);
-      
+      const openPositionCount = await this.get<{ count: number }>(
+        'SELECT COUNT(*) as count FROM positions WHERE status = ?',
+        ['OPEN'],
+      );
+      const closedPositionCount = await this.get<{ count: number }>(
+        'SELECT COUNT(*) as count FROM positions WHERE status = ?',
+        ['CLOSED'],
+      );
+
       // Get the database file size
       const stats = fs.statSync(this.dbPath);
-      
+
       return {
         tokenCount: tokenCount?.count || 0,
         poolCount: poolCount?.count || 0,
@@ -1365,7 +1435,9 @@ export class DatabaseManager {
         dbSizeBytes: stats.size,
       };
     } catch (err) {
-      throw new DatabaseError(`Failed to get database stats: ${err instanceof Error ? err.message : String(err)}`);
+      throw new DatabaseError(
+        `Failed to get database stats: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 
@@ -1390,5 +1462,5 @@ export class DatabaseManager {
 // Export model classes
 export * from './models';
 
-// Export database manager 
+// Export database manager
 export default DatabaseManager;

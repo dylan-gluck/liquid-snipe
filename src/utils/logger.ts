@@ -8,17 +8,17 @@ export interface LoggerOptions {
    * Enable verbose logging (including debug level logs)
    */
   verbose?: boolean;
-  
+
   /**
    * Whether to emit log events
    */
   emitEvents?: boolean;
-  
+
   /**
    * Whether to output to the console
    */
   consoleOutput?: boolean;
-  
+
   /**
    * Minimum log level to output
    */
@@ -33,7 +33,7 @@ export class Logger {
   private context: string;
   private options: Required<LoggerOptions>;
   private eventEmitter?: (event: LogEvent) => void;
-  
+
   private static readonly levelOrder: Record<LogEvent['level'], number> = {
     debug: 0,
     info: 1,
@@ -41,7 +41,7 @@ export class Logger {
     error: 3,
     success: 4,
   };
-  
+
   /**
    * Create a new Logger instance
    * @param context The context/module name for this logger
@@ -49,7 +49,7 @@ export class Logger {
    */
   constructor(context: string, options: LoggerOptions = {}) {
     this.context = context;
-    
+
     // Set default options
     this.options = {
       verbose: options.verbose ?? false,
@@ -58,7 +58,7 @@ export class Logger {
       minLevel: options.minLevel ?? 'debug',
     };
   }
-  
+
   /**
    * Update logger options
    */
@@ -75,42 +75,42 @@ export class Logger {
   public setEventEmitter(emitter: (event: LogEvent) => void): void {
     this.eventEmitter = emitter;
   }
-  
+
   /**
    * Set verbose mode
    */
   public setVerbose(verbose: boolean): void {
     this.options.verbose = verbose;
   }
-  
+
   /**
    * Log an informational message
    */
   public info(message: string, data?: Record<string, any>): void {
     this.log('info', message, data);
   }
-  
+
   /**
    * Log a warning message
    */
   public warning(message: string, data?: Record<string, any>): void {
     this.log('warning', message, data);
   }
-  
+
   /**
    * Log an error message
    */
   public error(message: string, data?: Record<string, any>): void {
     this.log('error', message, data);
   }
-  
+
   /**
    * Log a success message
    */
   public success(message: string, data?: Record<string, any>): void {
     this.log('success', message, data);
   }
-  
+
   /**
    * Log a debug message - only shown in verbose mode
    */
@@ -119,7 +119,7 @@ export class Logger {
       this.log('debug', message, data);
     }
   }
-  
+
   /**
    * Create a child logger with a derived context
    * @param subContext The sub-context to append to the current context
@@ -127,7 +127,7 @@ export class Logger {
   public child(subContext: string): Logger {
     return new Logger(`${this.context}:${subContext}`, this.options);
   }
-  
+
   /**
    * Log a message with the specified level
    */
@@ -136,7 +136,7 @@ export class Logger {
     if (Logger.levelOrder[level] < Logger.levelOrder[this.options.minLevel]) {
       return;
     }
-    
+
     // Create the log event
     const logEvent: LogEvent = {
       level,
@@ -144,25 +144,25 @@ export class Logger {
       timestamp: Date.now(),
       data,
     };
-    
+
     // Emit the log event if emitter is set
     if (this.options.emitEvents && this.eventEmitter) {
       this.eventEmitter(logEvent);
     }
-    
+
     // Also log to console if enabled
     if (this.options.consoleOutput) {
       this.consoleLog(logEvent);
     }
   }
-  
+
   /**
    * Output a log event to the console
    */
   private consoleLog(logEvent: LogEvent): void {
     const timestamp = new Date(logEvent.timestamp).toISOString();
     const prefix = `${timestamp} [${logEvent.level.toUpperCase()}]`;
-    
+
     switch (logEvent.level) {
       case 'info':
         console.info(`${prefix} ${logEvent.message}`);
@@ -180,7 +180,7 @@ export class Logger {
         console.debug(`${prefix} ${logEvent.message}`);
         break;
     }
-    
+
     if (logEvent.data && Object.keys(logEvent.data).length > 0) {
       console.log('Data:', logEvent.data);
     }

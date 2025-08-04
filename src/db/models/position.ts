@@ -42,7 +42,7 @@ export class PositionModel implements Position {
     amount: number,
     entryTradeId: string,
     exitStrategy: ExitStrategyConfig,
-    options: Partial<Position> = {}
+    options: Partial<Position> = {},
   ): PositionModel {
     return new PositionModel({
       id: options.id || uuidv4(),
@@ -63,13 +63,13 @@ export class PositionModel implements Position {
     this.status = 'CLOSED';
     this.exitTradeId = exitTradeId;
     this.closeTimestamp = Date.now();
-    
+
     // Calculate PnL
     const entryValue = this.entryPrice * this.amount;
     const exitValue = exitPrice * this.amount;
     this.pnlUsd = exitValue - entryValue;
     this.pnlPercent = (exitValue / entryValue - 1) * 100;
-    
+
     return this;
   }
 
@@ -81,7 +81,7 @@ export class PositionModel implements Position {
     const currentValue = currentPrice * this.amount;
     const pnlUsd = currentValue - entryValue;
     const pnlPercent = (currentValue / entryValue - 1) * 100;
-    
+
     return { pnlUsd, pnlPercent };
   }
 

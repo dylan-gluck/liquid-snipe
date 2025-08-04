@@ -73,7 +73,10 @@ export class ConnectionManager extends EventEmitter {
         Promise.race([
           fetch(url, options),
           new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Connection timeout')), this.config.connectionTimeout)
+            setTimeout(
+              () => reject(new Error('Connection timeout')),
+              this.config.connectionTimeout,
+            ),
           ),
         ]);
     }
@@ -121,7 +124,7 @@ export class ConnectionManager extends EventEmitter {
 
       try {
         await this.testConnection();
-        
+
         if (!this.status.isConnected) {
           this.status.isConnected = true;
           this.emit('reconnected', this.status);
@@ -131,7 +134,7 @@ export class ConnectionManager extends EventEmitter {
           this.status.isConnected = false;
           this.status.lastError = error instanceof Error ? error.message : 'Unknown error';
           this.emit('disconnected', this.status);
-          
+
           // Trigger reconnection
           this.scheduleReconnection();
         }
@@ -156,10 +159,7 @@ export class ConnectionManager extends EventEmitter {
       return;
     }
 
-    const delay = Math.min(
-      baseDelay * Math.pow(2, this.status.reconnectAttempts),
-      maxDelay
-    );
+    const delay = Math.min(baseDelay * Math.pow(2, this.status.reconnectAttempts), maxDelay);
 
     this.reconnectTimeout = setTimeout(async () => {
       this.reconnectTimeout = null;
@@ -172,7 +172,7 @@ export class ConnectionManager extends EventEmitter {
       } catch (error) {
         this.status.lastError = error instanceof Error ? error.message : 'Unknown error';
         this.emit('reconnectFailed', { error, attempt: this.status.reconnectAttempts });
-        
+
         // Schedule next attempt
         this.scheduleReconnection();
       }
@@ -222,8 +222,8 @@ export class ConnectionManager extends EventEmitter {
 
     // If URLs changed, reconnect
     if (
-      newConfig.httpUrl && newConfig.httpUrl !== oldConfig.httpUrl ||
-      newConfig.wsUrl && newConfig.wsUrl !== oldConfig.wsUrl
+      (newConfig.httpUrl && newConfig.httpUrl !== oldConfig.httpUrl) ||
+      (newConfig.wsUrl && newConfig.wsUrl !== oldConfig.wsUrl)
     ) {
       await this.reconnect();
     }

@@ -4,14 +4,14 @@
  * across the entire application.
  */
 
-import { 
-  LogEvent, 
-  NewPoolEvent, 
-  TradeDecision, 
-  TradeResult, 
-  Position, 
-  Token, 
-  LiquidityPool 
+import {
+  LogEvent,
+  NewPoolEvent,
+  TradeDecision,
+  TradeResult,
+  Position,
+  Token,
+  LiquidityPool,
 } from '../types';
 
 /**
@@ -71,13 +71,16 @@ export interface LiquidityUpdateEvent {
  * WalletUpdateEvent is emitted when wallet information changes
  */
 export interface WalletUpdateEvent {
-  balanceChanges: Record<string, {
-    token: string;
-    symbol?: string;
-    previousBalance: number;
-    currentBalance: number;
-    valueUsd?: number;
-  }>;
+  balanceChanges: Record<
+    string,
+    {
+      token: string;
+      symbol?: string;
+      previousBalance: number;
+      currentBalance: number;
+      valueUsd?: number;
+    }
+  >;
   totalValueUsd?: number;
   reason?: string;
   timestamp: number;
@@ -105,7 +108,7 @@ export interface EventMap {
   tradeDecision: TradeDecision;
   tradeResult: TradeResult;
   log: LogEvent;
-  
+
   // New event types
   positionUpdate: PositionUpdateEvent;
   systemStatus: SystemStatusEvent;

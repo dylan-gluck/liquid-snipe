@@ -19,7 +19,7 @@ export class ConfigManager {
 
   constructor(configPath?: string, envPrefix = 'LIQUID_SNIPE') {
     this.logger = new Logger('ConfigManager');
-    
+
     // Start with default configuration
     this.config = defaultConfig;
 
@@ -54,7 +54,9 @@ export class ConfigManager {
    * Enable a DEX by name
    */
   public enableDex(dexName: string): boolean {
-    const dex = this.config.supportedDexes.find(d => d.name.toLowerCase() === dexName.toLowerCase());
+    const dex = this.config.supportedDexes.find(
+      d => d.name.toLowerCase() === dexName.toLowerCase(),
+    );
     if (dex) {
       dex.enabled = true;
       return true;
@@ -66,7 +68,9 @@ export class ConfigManager {
    * Disable a DEX by name
    */
   public disableDex(dexName: string): boolean {
-    const dex = this.config.supportedDexes.find(d => d.name.toLowerCase() === dexName.toLowerCase());
+    const dex = this.config.supportedDexes.find(
+      d => d.name.toLowerCase() === dexName.toLowerCase(),
+    );
     if (dex) {
       dex.enabled = false;
       return true;
@@ -94,17 +98,15 @@ export class ConfigManager {
   public getExitStrategy(nameOrType: string): ExitStrategyConfig | undefined {
     // Try to find by name first (if available)
     const strategyByName = this.config.exitStrategies.find(
-      s => s.name?.toLowerCase() === nameOrType.toLowerCase()
+      s => s.name?.toLowerCase() === nameOrType.toLowerCase(),
     );
-    
+
     if (strategyByName) {
       return strategyByName;
     }
-    
+
     // Fallback to finding by type
-    return this.config.exitStrategies.find(
-      s => s.type.toLowerCase() === nameOrType.toLowerCase()
-    );
+    return this.config.exitStrategies.find(s => s.type.toLowerCase() === nameOrType.toLowerCase());
   }
 
   /**
@@ -190,13 +192,13 @@ export class ConfigManager {
       [`${prefix}_RPC_WS_URL`]: 'rpc.wsUrl',
       [`${prefix}_RPC_TIMEOUT`]: 'rpc.connectionTimeout',
       [`${prefix}_RPC_COMMITMENT`]: 'rpc.commitment',
-      
+
       // Wallet Configuration
       [`${prefix}_WALLET_KEYPAIR_PATH`]: 'wallet.keypairPath',
       [`${prefix}_WALLET_RISK_PERCENT`]: 'wallet.riskPercent',
       [`${prefix}_WALLET_MAX_TOTAL_RISK_PERCENT`]: 'wallet.maxTotalRiskPercent',
       [`${prefix}_WALLET_CONFIRMATION_REQUIRED`]: 'wallet.confirmationRequired',
-      
+
       // Trade Configuration
       [`${prefix}_TRADE_MIN_LIQUIDITY_USD`]: 'tradeConfig.minLiquidityUsd',
       [`${prefix}_TRADE_MAX_SLIPPAGE_PERCENT`]: 'tradeConfig.maxSlippagePercent',
@@ -207,14 +209,14 @@ export class ConfigManager {
       [`${prefix}_TRADE_MAX_TOKEN_SUPPLY`]: 'tradeConfig.maxTokenSupply',
       [`${prefix}_TRADE_MAX_HOLDING_TIME_MINUTES`]: 'tradeConfig.maxHoldingTimeMinutes',
       [`${prefix}_TRADE_MIN_POOL_AGE_SECONDS`]: 'tradeConfig.minPoolAgeSeconds',
-      
+
       // Database Configuration
       [`${prefix}_DB_PATH`]: 'database.path',
       [`${prefix}_DB_BACKUP_INTERVAL_HOURS`]: 'database.backupIntervalHours',
       [`${prefix}_DB_MAX_BACKUPS`]: 'database.maxBackups',
       [`${prefix}_DB_LOG_TO_DATABASE`]: 'database.logToDatabase',
       [`${prefix}_DB_PRUNE_EVENTS_OLDER_THAN_DAYS`]: 'database.pruneEventsOlderThanDays',
-      
+
       // Notification Configuration
       [`${prefix}_NOTIFICATIONS_ENABLED`]: 'notifications.enabled',
       [`${prefix}_TELEGRAM_ENABLED`]: 'notifications.telegram.enabled',
@@ -222,7 +224,7 @@ export class ConfigManager {
       [`${prefix}_TELEGRAM_CHAT_ID`]: 'notifications.telegram.chatId',
       [`${prefix}_DISCORD_ENABLED`]: 'notifications.discord.enabled',
       [`${prefix}_DISCORD_WEBHOOK_URL`]: 'notifications.discord.webhookUrl',
-      
+
       // General Configuration
       [`${prefix}_ACTIVE_STRATEGY`]: 'activeStrategy',
       [`${prefix}_LOG_LEVEL`]: 'logLevel',
@@ -247,7 +249,7 @@ export class ConfigManager {
     // Parse the path into an array of keys
     const keys = path.split('.');
     let current: any = this.config;
-    
+
     // Navigate to the correct location in the config object
     for (let i = 0; i < keys.length - 1; i++) {
       const key = keys[i];
@@ -256,11 +258,11 @@ export class ConfigManager {
       }
       current = current[key];
     }
-    
+
     // Set the value, converting to the appropriate type
     const lastKey = keys[keys.length - 1];
     const currentValue = current[lastKey];
-    
+
     // Type conversion based on the existing value's type
     if (currentValue === undefined) {
       current[lastKey] = value;
@@ -289,7 +291,7 @@ export class ConfigManager {
     if (!this.config.rpc.httpUrl) {
       errors.push('RPC HTTP URL is required');
     }
-    
+
     if (!this.config.rpc.wsUrl) {
       errors.push('RPC WebSocket URL is required');
     }
@@ -298,7 +300,7 @@ export class ConfigManager {
     if (!this.config.wallet.keypairPath) {
       errors.push('Wallet keypair path is required');
     }
-    
+
     if (this.config.wallet.riskPercent <= 0 || this.config.wallet.riskPercent > 100) {
       errors.push('Wallet risk percentage must be between 0 and 100');
     }
@@ -307,15 +309,18 @@ export class ConfigManager {
     if (this.config.tradeConfig.minLiquidityUsd <= 0) {
       errors.push('Minimum liquidity must be greater than 0');
     }
-    
-    if (this.config.tradeConfig.maxSlippagePercent <= 0 || this.config.tradeConfig.maxSlippagePercent > 100) {
+
+    if (
+      this.config.tradeConfig.maxSlippagePercent <= 0 ||
+      this.config.tradeConfig.maxSlippagePercent > 100
+    ) {
       errors.push('Max slippage percentage must be between 0 and 100');
     }
-    
+
     if (this.config.tradeConfig.gasLimit <= 0) {
       errors.push('Gas limit must be greater than 0');
     }
-    
+
     if (this.config.tradeConfig.defaultTradeAmountUsd <= 0) {
       errors.push('Default trade amount must be greater than 0');
     }

@@ -18,9 +18,9 @@ export class CoreController {
     this.eventEmitter = new EventEmitter();
     this.dbManager = new DatabaseManager(config.database.path);
     this.connectionManager = new ConnectionManager(config.rpc);
-    
+
     // Connect logger to event emitter
-    this.logger.setEventEmitter((logEvent) => {
+    this.logger.setEventEmitter(logEvent => {
       this.eventEmitter.emit('log', logEvent);
     });
   }
@@ -98,20 +98,20 @@ export class CoreController {
 
   private registerEventHandlers(): void {
     // Log event handler
-    this.eventEmitter.on('log', (logEvent) => {
+    this.eventEmitter.on('log', logEvent => {
       // TODO: Store logs in database
     });
 
     // Connection event handlers
-    this.connectionManager.on('connected', (status) => {
+    this.connectionManager.on('connected', status => {
       this.logger.info(`Connected to Solana RPC (latency: ${status.pingLatency}ms)`);
     });
 
-    this.connectionManager.on('disconnected', (status) => {
+    this.connectionManager.on('disconnected', status => {
       this.logger.warning(`Disconnected from Solana RPC: ${status.lastError}`);
     });
 
-    this.connectionManager.on('reconnected', (status) => {
+    this.connectionManager.on('reconnected', status => {
       this.logger.info(`Reconnected to Solana RPC after ${status.reconnectAttempts} attempts`);
     });
 
@@ -119,11 +119,11 @@ export class CoreController {
       this.logger.error(`Reconnection attempt ${attempt} failed: ${error}`);
     });
 
-    this.connectionManager.on('maxReconnectAttemptsReached', (status) => {
+    this.connectionManager.on('maxReconnectAttemptsReached', status => {
       this.logger.error('Maximum reconnection attempts reached - connection lost');
     });
 
-    this.connectionManager.on('error', (error) => {
+    this.connectionManager.on('error', error => {
       this.logger.error(`Connection error: ${error.message}`);
     });
 
@@ -145,7 +145,7 @@ export class CoreController {
     });
 
     // Handle uncaught exceptions
-    process.on('uncaughtException', async (error) => {
+    process.on('uncaughtException', async error => {
       this.logger.error(`Uncaught exception: ${error.message}`);
       this.logger.error(error.stack || '');
       await this.shutdown();
@@ -153,7 +153,7 @@ export class CoreController {
     });
 
     // Handle unhandled promise rejections
-    process.on('unhandledRejection', async (reason) => {
+    process.on('unhandledRejection', async reason => {
       this.logger.error(`Unhandled promise rejection: ${reason}`);
       await this.shutdown();
       process.exit(1);

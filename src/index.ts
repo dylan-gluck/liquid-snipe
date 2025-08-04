@@ -103,15 +103,15 @@ program
 // Start the application
 async function main(): Promise<void> {
   const options = program.opts();
-  
+
   // Export configuration if requested
   if (options.exportConfig) {
     try {
       const configManager = new ConfigManager(options.config);
-      
+
       // Apply any command line options first
       applyCommandLineOptions(configManager, options);
-      
+
       // Save the configuration
       configManager.saveToFile(options.exportConfig);
       logger.info(`Configuration exported to ${options.exportConfig}`);
@@ -125,22 +125,22 @@ async function main(): Promise<void> {
   try {
     // Load configuration
     const configManager = new ConfigManager(options.config);
-    
+
     // Apply command line overrides
     applyCommandLineOptions(configManager, options);
-    
+
     // Get the final configuration
     const config = configManager.getConfig();
-    
+
     // Initialize and start the controller
     const controller = new CoreController(config);
-    
+
     // Initialize the application
     await controller.initialize();
-    
+
     // Start the application
     await controller.start();
-    
+
     // The application will continue running until shutdown
     logger.info('Liquid-Snipe is running. Press Ctrl+C to exit.');
   } catch (error) {
@@ -157,10 +157,7 @@ async function main(): Promise<void> {
 program.parse();
 
 // Apply command line options to the configuration
-function applyCommandLineOptions(
-  configManager: ConfigManager, 
-  options: Record<string, any>
-): void {
+function applyCommandLineOptions(configManager: ConfigManager, options: Record<string, any>): void {
   const config = configManager.getConfig();
   const overrides: Partial<AppConfig> = {};
 
@@ -190,8 +187,10 @@ function applyCommandLineOptions(
     overrides.tradeConfig = { ...config.tradeConfig };
     if (options.amount) overrides.tradeConfig.defaultTradeAmountUsd = parseFloat(options.amount);
     if (options.maxAmount) overrides.tradeConfig.maxTradeAmountUsd = parseFloat(options.maxAmount);
-    if (options.minLiquidity) overrides.tradeConfig.minLiquidityUsd = parseFloat(options.minLiquidity);
-    if (options.maxSlippage) overrides.tradeConfig.maxSlippagePercent = parseFloat(options.maxSlippage);
+    if (options.minLiquidity)
+      overrides.tradeConfig.minLiquidityUsd = parseFloat(options.minLiquidity);
+    if (options.maxSlippage)
+      overrides.tradeConfig.maxSlippagePercent = parseFloat(options.maxSlippage);
     if (options.gasLimit) overrides.tradeConfig.gasLimit = parseFloat(options.gasLimit);
   }
 
@@ -204,7 +203,7 @@ function applyCommandLineOptions(
   if (options.enableDex.length > 0 || options.disableDex.length > 0) {
     // Create a copy of the DEX configurations
     const dexConfigs: DexConfig[] = [...config.supportedDexes];
-    
+
     // Enable specified DEXes
     options.enableDex.forEach((dexName: string) => {
       const dex = dexConfigs.find(d => d.name.toLowerCase() === dexName.toLowerCase());
@@ -214,7 +213,7 @@ function applyCommandLineOptions(
         logger.warning(`Unknown DEX: ${dexName}`);
       }
     });
-    
+
     // Disable specified DEXes
     options.disableDex.forEach((dexName: string) => {
       const dex = dexConfigs.find(d => d.name.toLowerCase() === dexName.toLowerCase());
@@ -224,7 +223,7 @@ function applyCommandLineOptions(
         logger.warning(`Unknown DEX: ${dexName}`);
       }
     });
-    
+
     overrides.supportedDexes = dexConfigs;
   }
 
@@ -281,4 +280,3 @@ function applyCommandLineOptions(
   // Apply all overrides
   configManager.override(overrides);
 }
-

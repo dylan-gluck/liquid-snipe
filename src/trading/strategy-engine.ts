@@ -2,13 +2,7 @@ import { ConnectionManager } from '../blockchain/connection-manager';
 import { TokenInfoService, TokenInfo } from '../blockchain/token-info-service';
 import { DatabaseManager } from '../db';
 import { Logger } from '../utils/logger';
-import {
-  NewPoolEvent,
-  TradeDecision,
-  TradeConfig,
-  WalletConfig,
-  AppConfig,
-} from '../types';
+import { NewPoolEvent, TradeDecision, TradeConfig, WalletConfig, AppConfig } from '../types';
 
 /**
  * Represents a trading strategy interface
@@ -17,7 +11,7 @@ export interface TradeStrategy {
   readonly name: string;
   readonly description: string;
   readonly priority: number; // Lower number = higher priority
-  
+
   /**
    * Evaluate whether this strategy should recommend a trade
    */
@@ -178,7 +172,7 @@ export class RiskAssessmentStrategy extends BaseStrategy {
     const { newToken, poolLiquidity, walletConfig } = context;
 
     const riskScore = newToken.riskScore;
-    
+
     // Reject high-risk tokens
     if (riskScore > 7) {
       return {
@@ -191,7 +185,7 @@ export class RiskAssessmentStrategy extends BaseStrategy {
     // Calculate risk-adjusted confidence
     const riskFactor = (10 - riskScore) / 10; // 0-1 scale, higher is better
     const liquidityFactor = Math.min(1, poolLiquidity / 10000); // Cap at $10k
-    const confidence = (riskFactor * 0.7 + liquidityFactor * 0.3);
+    const confidence = riskFactor * 0.7 + liquidityFactor * 0.3;
 
     // Calculate recommended position size
     const availableCapital = 10000; // TODO: Get from wallet balance
@@ -240,10 +234,7 @@ export class StrategyEngine {
     this.logger = new Logger('StrategyEngine');
 
     // Initialize default strategies
-    this.strategies = [
-      new LiquidityThresholdStrategy(),
-      new RiskAssessmentStrategy(),
-    ];
+    this.strategies = [new LiquidityThresholdStrategy(), new RiskAssessmentStrategy()];
 
     // Sort strategies by priority (lower number = higher priority)
     this.strategies.sort((a, b) => a.priority - b.priority);
@@ -332,7 +323,7 @@ export class StrategyEngine {
         try {
           const result = await strategy.evaluate(context);
           results.push(result);
-          
+
           this.logger.debug(
             `Strategy ${strategy.name}: ${result.shouldTrade ? 'TRADE' : 'SKIP'} (${result.reason})`,
           );
@@ -375,7 +366,7 @@ export class StrategyEngine {
       // TODO: Implement actual pool liquidity fetching
       // For now, return mock data
       this.logger.debug(`Getting liquidity for pool ${poolAddress}`);
-      
+
       // This would normally fetch from the DEX's pool account
       // and calculate USD value based on token prices
       return {
@@ -408,10 +399,11 @@ export class StrategyEngine {
     const recommendedAmounts = results
       .filter(r => r.recommendedAmount !== undefined)
       .map(r => r.recommendedAmount!);
-    
-    const tradeAmount = recommendedAmounts.length > 0
-      ? Math.min(...recommendedAmounts) // Use most conservative amount
-      : this.config.tradeConfig.defaultTradeAmountUsd;
+
+    const tradeAmount =
+      recommendedAmounts.length > 0
+        ? Math.min(...recommendedAmounts) // Use most conservative amount
+        : this.config.tradeConfig.defaultTradeAmountUsd;
 
     // Determine expected outcome
     const expectedAmountOut = this.calculateExpectedAmountOut(

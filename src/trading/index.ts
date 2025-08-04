@@ -10,3 +10,19 @@ export {
 } from './strategy-engine';
 
 export { TradeExecutor } from './trade-executor';
+
+export {
+  PositionManager,
+  TokenPrice,
+  ExitEvaluationResult,
+  PositionExitRequest,
+  ExitStrategy,
+  BaseExitStrategy,
+  TimeExitStrategy,
+  ProfitExitStrategy,
+  LossExitStrategy,
+  LiquidityExitStrategy,
+  DeveloperActivityExitStrategy,
+  PositionManagerStats,
+  PositionManagerOptions,
+} from './position-manager';

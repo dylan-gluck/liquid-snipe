@@ -1,4 +1,10 @@
-import { Connection, Keypair, Transaction, PublicKey, TransactionConfirmationStatus } from '@solana/web3.js';
+import {
+  Connection,
+  Keypair,
+  Transaction,
+  PublicKey,
+  TransactionConfirmationStatus,
+} from '@solana/web3.js';
 import { randomUUID } from 'crypto';
 import { readFileSync } from 'fs';
 import { ConnectionManager } from '../blockchain/connection-manager';
@@ -68,11 +74,7 @@ export class TradeExecutor {
   private readonly MAX_RETRIES = 3;
   private readonly RETRY_DELAY_MS = 1000;
 
-  constructor(
-    connectionManager: ConnectionManager,
-    dbManager: DatabaseManager,
-    config: AppConfig,
-  ) {
+  constructor(connectionManager: ConnectionManager, dbManager: DatabaseManager, config: AppConfig) {
     this.connectionManager = connectionManager;
     this.dbManager = dbManager;
     this.config = config;
@@ -135,7 +137,8 @@ export class TradeExecutor {
 
       // Verify wallet balance before trade
       const walletBalance = await this.getWalletBalance();
-      if (walletBalance.sol < 0.01) { // Minimum SOL for gas
+      if (walletBalance.sol < 0.01) {
+        // Minimum SOL for gas
         throw new Error('Insufficient SOL balance for transaction fees');
       }
 
@@ -224,9 +227,9 @@ export class TradeExecutor {
       const transaction = new Transaction();
 
       // Mock implementation - would need actual DEX integration
-      const expectedAmountOut = decision.expectedAmountOut || 
-        decision.tradeAmountUsd / (decision.price || 0.001);
-      
+      const expectedAmountOut =
+        decision.expectedAmountOut || decision.tradeAmountUsd / (decision.price || 0.001);
+
       const priceImpact = this.calculatePriceImpact(decision.tradeAmountUsd, decision.poolAddress);
       const slippageTolerance = this.config.tradeConfig.maxSlippagePercent / 100;
       const minimumAmountOut = expectedAmountOut * (1 - slippageTolerance);
@@ -270,15 +273,15 @@ export class TradeExecutor {
 
         // Submit transaction
         const connection = this.connectionManager.getConnection();
-        const signature = await connection.sendRawTransaction(
-          transaction.serialize(),
-          {
-            skipPreflight: false,
-            preflightCommitment: 'processed',
-          }
-        );
+        const signature = await connection.sendRawTransaction(transaction.serialize(), {
+          skipPreflight: false,
+          preflightCommitment: 'processed',
+        });
 
-        this.logger.debug(`Transaction submitted: ${signature}`, { tradeId, attempt: retryCount + 1 });
+        this.logger.debug(`Transaction submitted: ${signature}`, {
+          tradeId,
+          attempt: retryCount + 1,
+        });
 
         // Wait for confirmation
         const confirmation = await this.waitForConfirmation(signature);
@@ -324,7 +327,7 @@ export class TradeExecutor {
   private async waitForConfirmation(signature: string): Promise<TransactionConfirmation> {
     try {
       const connection = this.connectionManager.getConnection();
-      
+
       // Wait for confirmation with timeout
       const confirmation = await connection.confirmTransaction(signature, 'confirmed');
 
@@ -344,7 +347,7 @@ export class TradeExecutor {
       });
 
       const gasFeeUsed = txDetails?.meta?.fee || 0;
-      
+
       // TODO: Parse transaction logs to extract actual amount out
       // This would depend on the specific DEX program being used
 
@@ -401,7 +404,7 @@ export class TradeExecutor {
       return {
         sol: solBalance / 1e9, // Convert lamports to SOL
         tokens: new Map(),
-        totalValueUsd: solBalance / 1e9 * 100, // Mock SOL price of $100
+        totalValueUsd: (solBalance / 1e9) * 100, // Mock SOL price of $100
       };
     } catch (error) {
       this.logger.error('Failed to get wallet balance:', {
@@ -417,7 +420,9 @@ export class TradeExecutor {
   private async validateTradeDecision(decision: TradeDecision): Promise<void> {
     // Check maximum trade amount
     if (decision.tradeAmountUsd > (this.config.tradeConfig.maxTradeAmountUsd || 1000)) {
-      throw new Error(`Trade amount exceeds maximum: ${decision.tradeAmountUsd} > ${this.config.tradeConfig.maxTradeAmountUsd}`);
+      throw new Error(
+        `Trade amount exceeds maximum: ${decision.tradeAmountUsd} > ${this.config.tradeConfig.maxTradeAmountUsd}`,
+      );
     }
 
     // Check minimum trade amount
@@ -428,7 +433,7 @@ export class TradeExecutor {
     // Check risk limits
     const walletBalance = await this.getWalletBalance();
     const riskAmount = walletBalance.totalValueUsd * (this.config.wallet.riskPercent / 100);
-    
+
     if (decision.tradeAmountUsd > riskAmount) {
       throw new Error(`Trade exceeds risk limit: ${decision.tradeAmountUsd} > ${riskAmount}`);
     }
@@ -444,7 +449,7 @@ export class TradeExecutor {
    */
   private async verifyWalletBalance(): Promise<void> {
     const balance = await this.getWalletBalance();
-    
+
     if (balance.sol < 0.01) {
       this.logger.warning('Low SOL balance for transaction fees', { balance: balance.sol });
     }
@@ -520,12 +525,12 @@ export class TradeExecutor {
       // Check if we should trip the breaker based on recent failures
       // This is a simplified implementation
       const recentFailures = await this.getRecentFailureCount(name);
-      
+
       if (recentFailures >= 3) {
         breaker.isTripped = true;
         breaker.trippedAt = Date.now();
         breaker.reason = `Too many failures: ${recentFailures}`;
-        
+
         this.logger.warning(`Circuit breaker tripped: ${name}`, {
           reason: breaker.reason,
           resetAfter: breaker.resetAfter,

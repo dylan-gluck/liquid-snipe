@@ -8,7 +8,7 @@ export enum TradingState {
   CONFIRMING_TRADE = 'CONFIRMING_TRADE',
   TRADE_COMPLETED = 'TRADE_COMPLETED',
   TRADE_FAILED = 'TRADE_FAILED',
-  ERROR = 'ERROR'
+  ERROR = 'ERROR',
 }
 
 export enum TradingStateTransition {
@@ -25,7 +25,7 @@ export enum TradingStateTransition {
   TRADE_CONFIRMATION_FAILED = 'TRADE_CONFIRMATION_FAILED',
   TRADE_TIMEOUT = 'TRADE_TIMEOUT',
   RESET = 'RESET',
-  ERROR_OCCURRED = 'ERROR_OCCURRED'
+  ERROR_OCCURRED = 'ERROR_OCCURRED',
 }
 
 export interface TradingStateContext {
@@ -51,7 +51,11 @@ export class TradingStateMachine {
   private currentState: TradingState = TradingState.IDLE;
   private context: TradingStateContext = {};
   private transitionRules: TradingStateTransitionRule[];
-  private stateHistory: Array<{ state: TradingState; timestamp: number; trigger?: TradingStateTransition }> = [];
+  private stateHistory: Array<{
+    state: TradingState;
+    timestamp: number;
+    trigger?: TradingStateTransition;
+  }> = [];
 
   constructor() {
     this.logger = new Logger('TradingStateMachine');
@@ -66,9 +70,9 @@ export class TradingStateMachine {
         from: TradingState.IDLE,
         to: TradingState.EVALUATING_POOL,
         trigger: TradingStateTransition.POOL_DETECTED,
-        action: (context) => {
+        action: context => {
           context.startTime = Date.now();
-        }
+        },
       },
 
       // From EVALUATING_POOL
@@ -76,35 +80,35 @@ export class TradingStateMachine {
         from: TradingState.EVALUATING_POOL,
         to: TradingState.PREPARING_TRADE,
         trigger: TradingStateTransition.EVALUATION_COMPLETED,
-        guard: (context) => Boolean(context.tokenAddress && context.tradeAmount)
+        guard: context => Boolean(context.tokenAddress && context.tradeAmount),
       },
       {
         from: TradingState.EVALUATING_POOL,
         to: TradingState.IDLE,
         trigger: TradingStateTransition.EVALUATION_COMPLETED,
-        guard: (context) => !context.tokenAddress || !context.tradeAmount
+        guard: context => !context.tokenAddress || !context.tradeAmount,
       },
       {
         from: TradingState.EVALUATING_POOL,
         to: TradingState.ERROR,
-        trigger: TradingStateTransition.EVALUATION_FAILED
+        trigger: TradingStateTransition.EVALUATION_FAILED,
       },
 
       // From PREPARING_TRADE
       {
         from: TradingState.PREPARING_TRADE,
         to: TradingState.EXECUTING_TRADE,
-        trigger: TradingStateTransition.TRADE_PREPARED
+        trigger: TradingStateTransition.TRADE_PREPARED,
       },
       {
         from: TradingState.PREPARING_TRADE,
         to: TradingState.TRADE_FAILED,
-        trigger: TradingStateTransition.TRADE_PREPARATION_FAILED
+        trigger: TradingStateTransition.TRADE_PREPARATION_FAILED,
       },
       {
         from: TradingState.PREPARING_TRADE,
         to: TradingState.IDLE,
-        trigger: TradingStateTransition.TRADE_REJECTED
+        trigger: TradingStateTransition.TRADE_REJECTED,
       },
 
       // From EXECUTING_TRADE
@@ -112,14 +116,14 @@ export class TradingStateMachine {
         from: TradingState.EXECUTING_TRADE,
         to: TradingState.CONFIRMING_TRADE,
         trigger: TradingStateTransition.TRADE_SUBMITTED,
-        action: (context) => {
+        action: context => {
           // Transaction submitted, now waiting for confirmation
-        }
+        },
       },
       {
         from: TradingState.EXECUTING_TRADE,
         to: TradingState.TRADE_FAILED,
-        trigger: TradingStateTransition.TRADE_SUBMISSION_FAILED
+        trigger: TradingStateTransition.TRADE_SUBMISSION_FAILED,
       },
 
       // From CONFIRMING_TRADE
@@ -127,20 +131,20 @@ export class TradingStateMachine {
         from: TradingState.CONFIRMING_TRADE,
         to: TradingState.TRADE_COMPLETED,
         trigger: TradingStateTransition.TRADE_CONFIRMED,
-        action: (context) => {
+        action: context => {
           // Trade successfully completed
           this.logger.info(`Trade completed: ${context.transactionSignature}`);
-        }
+        },
       },
       {
         from: TradingState.CONFIRMING_TRADE,
         to: TradingState.TRADE_FAILED,
-        trigger: TradingStateTransition.TRADE_CONFIRMATION_FAILED
+        trigger: TradingStateTransition.TRADE_CONFIRMATION_FAILED,
       },
       {
         from: TradingState.CONFIRMING_TRADE,
         to: TradingState.TRADE_FAILED,
-        trigger: TradingStateTransition.TRADE_TIMEOUT
+        trigger: TradingStateTransition.TRADE_TIMEOUT,
       },
 
       // From terminal states back to IDLE
@@ -148,52 +152,56 @@ export class TradingStateMachine {
         from: TradingState.TRADE_COMPLETED,
         to: TradingState.IDLE,
         trigger: TradingStateTransition.RESET,
-        action: (context) => {
+        action: context => {
           // Clear context for next trade
           const duration = context.startTime ? Date.now() - context.startTime : 0;
           this.logger.info(`Trading cycle completed in ${duration}ms`);
           this.resetContext();
-        }
+        },
       },
       {
         from: TradingState.TRADE_FAILED,
         to: TradingState.IDLE,
         trigger: TradingStateTransition.RESET,
-        action: (context) => {
+        action: context => {
           this.logger.warning(`Trading cycle failed: ${context.error?.message}`);
           this.resetContext();
-        }
+        },
       },
       {
         from: TradingState.ERROR,
         to: TradingState.IDLE,
         trigger: TradingStateTransition.RESET,
-        action: (context) => {
+        action: context => {
           this.logger.error(`Trading state machine error: ${context.error?.message}`);
           this.resetContext();
-        }
+        },
       },
 
       // Error transitions from any state
       ...Object.values(TradingState).map(state => ({
         from: state,
         to: TradingState.ERROR,
-        trigger: TradingStateTransition.ERROR_OCCURRED
-      }))
+        trigger: TradingStateTransition.ERROR_OCCURRED,
+      })),
     ];
   }
 
-  public transition(trigger: TradingStateTransition, contextUpdates?: Partial<TradingStateContext>): boolean {
+  public transition(
+    trigger: TradingStateTransition,
+    contextUpdates?: Partial<TradingStateContext>,
+  ): boolean {
     // Update context if provided
     if (contextUpdates) {
       this.context = { ...this.context, ...contextUpdates };
     }
 
     // Find applicable transition rule
-    const rule = this.transitionRules.find(r => 
-      r.from === this.currentState && 
-      r.trigger === trigger &&
-      (!r.guard || r.guard(this.context))
+    const rule = this.transitionRules.find(
+      r =>
+        r.from === this.currentState &&
+        r.trigger === trigger &&
+        (!r.guard || r.guard(this.context)),
     );
 
     if (!rule) {
@@ -230,7 +238,11 @@ export class TradingStateMachine {
     return { ...this.context };
   }
 
-  public getStateHistory(): Array<{ state: TradingState; timestamp: number; trigger?: TradingStateTransition }> {
+  public getStateHistory(): Array<{
+    state: TradingState;
+    timestamp: number;
+    trigger?: TradingStateTransition;
+  }> {
     return [...this.stateHistory];
   }
 
@@ -239,11 +251,9 @@ export class TradingStateMachine {
   }
 
   public isTerminalState(): boolean {
-    return [
-      TradingState.TRADE_COMPLETED,
-      TradingState.TRADE_FAILED,
-      TradingState.ERROR
-    ].includes(this.currentState);
+    return [TradingState.TRADE_COMPLETED, TradingState.TRADE_FAILED, TradingState.ERROR].includes(
+      this.currentState,
+    );
   }
 
   public isProcessingTrade(): boolean {
@@ -251,7 +261,7 @@ export class TradingStateMachine {
       TradingState.EVALUATING_POOL,
       TradingState.PREPARING_TRADE,
       TradingState.EXECUTING_TRADE,
-      TradingState.CONFIRMING_TRADE
+      TradingState.CONFIRMING_TRADE,
     ].includes(this.currentState);
   }
 
@@ -275,7 +285,7 @@ export class TradingStateMachine {
     this.stateHistory.push({
       state,
       timestamp: Date.now(),
-      trigger
+      trigger,
     });
 
     // Keep only last 100 state changes
@@ -290,10 +300,11 @@ export class TradingStateMachine {
   }
 
   public canTransition(trigger: TradingStateTransition): boolean {
-    return this.transitionRules.some(r => 
-      r.from === this.currentState && 
-      r.trigger === trigger &&
-      (!r.guard || r.guard(this.context))
+    return this.transitionRules.some(
+      r =>
+        r.from === this.currentState &&
+        r.trigger === trigger &&
+        (!r.guard || r.guard(this.context)),
     );
   }
 }

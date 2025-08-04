@@ -49,7 +49,7 @@ export class ErrorHandler {
     errorsByComponent: new Map<string, number>(),
     errorsBySeverity: new Map<string, number>(),
     recoverySuccessRate: 0,
-    lastError: null as EnrichedError | null
+    lastError: null as EnrichedError | null,
   };
 
   constructor(eventManager: EventManager, options: ErrorHandlerOptions = {}) {
@@ -59,7 +59,7 @@ export class ErrorHandler {
       maxRetries: options.maxRetries ?? 3,
       retryDelay: options.retryDelay ?? 1000,
       enableNotifications: options.enableNotifications ?? true,
-      enableMetrics: options.enableMetrics ?? true
+      enableMetrics: options.enableMetrics ?? true,
     };
   }
 
@@ -69,7 +69,7 @@ export class ErrorHandler {
   public captureError(
     error: Error,
     context: ErrorContext,
-    severity?: Partial<ErrorSeverity>
+    severity?: Partial<ErrorSeverity>,
   ): EnrichedError {
     const enrichedError: EnrichedError = {
       id: this.generateErrorId(),
@@ -80,7 +80,7 @@ export class ErrorHandler {
       stackTrace: error.stack || 'No stack trace available',
       recoveryAttempts: 0,
       isRecoverable: this.isRecoverableError(error, context),
-      tags: this.generateTags(error, context)
+      tags: this.generateTags(error, context),
     };
 
     // Store in registry
@@ -112,8 +112,8 @@ export class ErrorHandler {
         category: {
           category: this.mapComponentToCategory(enrichedError.context.component),
           severity: enrichedError.severity.level,
-          recoverable: enrichedError.isRecoverable
-        }
+          recoverable: enrichedError.isRecoverable,
+        },
       });
 
       // Send notification if enabled and severity is high enough
@@ -143,12 +143,16 @@ export class ErrorHandler {
    */
   private async attemptRecovery(enrichedError: EnrichedError): Promise<boolean> {
     enrichedError.recoveryAttempts++;
-    
-    this.logger.info(`Attempting recovery ${enrichedError.recoveryAttempts}/${this.options.maxRetries} for error ${enrichedError.id}`);
+
+    this.logger.info(
+      `Attempting recovery ${enrichedError.recoveryAttempts}/${this.options.maxRetries} for error ${enrichedError.id}`,
+    );
 
     try {
       // Wait before retry
-      await new Promise(resolve => setTimeout(resolve, this.options.retryDelay * enrichedError.recoveryAttempts));
+      await new Promise(resolve =>
+        setTimeout(resolve, this.options.retryDelay * enrichedError.recoveryAttempts),
+      );
 
       // Attempt component-specific recovery
       const success = await this.performComponentRecovery(enrichedError);
@@ -218,19 +222,19 @@ export class ErrorHandler {
       data: {
         errorId: enrichedError.id,
         component: enrichedError.context.component,
-        operation: enrichedError.context.operation
-      }
+        operation: enrichedError.context.operation,
+      },
     });
 
     // For system stability issues, may need to trigger shutdown
     if (enrichedError.severity.affectsSystemStability) {
       this.logger.error('System stability compromised - emergency procedures may be needed');
-      
+
       this.eventManager.emit('systemStatus', {
         status: 'CRITICAL_ERROR',
         timestamp: Date.now(),
         reason: `Critical error in ${enrichedError.context.component}`,
-        data: { errorId: enrichedError.id }
+        data: { errorId: enrichedError.id },
       });
     }
   }
@@ -251,8 +255,8 @@ export class ErrorHandler {
         component: enrichedError.context.component,
         operation: enrichedError.context.operation,
         recoverable: enrichedError.isRecoverable,
-        tags: enrichedError.tags
-      }
+        tags: enrichedError.tags,
+      },
     };
 
     this.eventManager.emit('notification', notification);
@@ -264,7 +268,7 @@ export class ErrorHandler {
   private routeError(enrichedError: EnrichedError): void {
     // Route to component-specific handlers
     const handlers = this.getHandlersForError(enrichedError);
-    
+
     handlers.forEach(handler => {
       try {
         handler(enrichedError);
@@ -280,13 +284,13 @@ export class ErrorHandler {
   private determineSeverity(
     error: Error,
     context: ErrorContext,
-    overrides?: Partial<ErrorSeverity>
+    overrides?: Partial<ErrorSeverity>,
   ): ErrorSeverity {
     let severity: ErrorSeverity = {
       level: 'MEDIUM',
       requiresImmedateAction: false,
       affectsTrading: false,
-      affectsSystemStability: false
+      affectsSystemStability: false,
     };
 
     // Component-based severity
@@ -332,21 +336,21 @@ export class ErrorHandler {
     }
 
     // Network errors are usually recoverable
-    if (error.message.includes('timeout') || 
-        error.message.includes('connection') ||
-        error.message.includes('ECONNREFUSED')) {
+    if (
+      error.message.includes('timeout') ||
+      error.message.includes('connection') ||
+      error.message.includes('ECONNREFUSED')
+    ) {
       return true;
     }
 
     // Database lock errors are recoverable
-    if (error.message.includes('database is locked') ||
-        error.message.includes('SQLITE_BUSY')) {
+    if (error.message.includes('database is locked') || error.message.includes('SQLITE_BUSY')) {
       return true;
     }
 
     // Component-specific recovery rules
-    if (context.component === 'ConnectionManager' || 
-        context.component === 'BlockchainWatcher') {
+    if (context.component === 'ConnectionManager' || context.component === 'BlockchainWatcher') {
       return true;
     }
 
@@ -398,7 +402,8 @@ export class ErrorHandler {
     this.errorMetrics.lastError = enrichedError;
 
     // Update by component
-    const componentCount = this.errorMetrics.errorsByComponent.get(enrichedError.context.component) || 0;
+    const componentCount =
+      this.errorMetrics.errorsByComponent.get(enrichedError.context.component) || 0;
     this.errorMetrics.errorsByComponent.set(enrichedError.context.component, componentCount + 1);
 
     // Update by severity
@@ -410,9 +415,14 @@ export class ErrorHandler {
    * Log enriched error
    */
   private logEnrichedError(enrichedError: EnrichedError): void {
-    const logLevel = enrichedError.severity.level === 'CRITICAL' ? 'error' : 
-                    enrichedError.severity.level === 'HIGH' ? 'error' :
-                    enrichedError.severity.level === 'MEDIUM' ? 'warning' : 'info';
+    const logLevel =
+      enrichedError.severity.level === 'CRITICAL'
+        ? 'error'
+        : enrichedError.severity.level === 'HIGH'
+          ? 'error'
+          : enrichedError.severity.level === 'MEDIUM'
+            ? 'warning'
+            : 'info';
 
     this.logger[logLevel as 'info' | 'warning' | 'error'](
       `[${enrichedError.severity.level}] ${enrichedError.context.component}:${enrichedError.context.operation} - ${enrichedError.originalError.message}`,
@@ -420,8 +430,8 @@ export class ErrorHandler {
         errorId: enrichedError.id,
         tags: enrichedError.tags,
         recoverable: enrichedError.isRecoverable,
-        metadata: enrichedError.context.metadata
-      }
+        metadata: enrichedError.context.metadata,
+      },
     );
   }
 
@@ -445,7 +455,9 @@ export class ErrorHandler {
   }
 
   // Utility methods
-  private mapComponentToCategory(component: string): 'CONNECTION' | 'DATABASE' | 'TRADING' | 'SYSTEM' | 'USER_INPUT' {
+  private mapComponentToCategory(
+    component: string,
+  ): 'CONNECTION' | 'DATABASE' | 'TRADING' | 'SYSTEM' | 'USER_INPUT' {
     switch (component) {
       case 'ConnectionManager':
       case 'BlockchainWatcher':
@@ -468,7 +480,7 @@ export class ErrorHandler {
     const handlers: Array<(error: EnrichedError) => void> = [];
 
     // Always handle the error through the main handler
-    handlers.push((error) => this.handleError(error));
+    handlers.push(error => this.handleError(error));
 
     return handlers;
   }
@@ -478,7 +490,7 @@ export class ErrorHandler {
     return {
       ...this.errorMetrics,
       errorsByComponent: Object.fromEntries(this.errorMetrics.errorsByComponent),
-      errorsBySeverity: Object.fromEntries(this.errorMetrics.errorsBySeverity)
+      errorsBySeverity: Object.fromEntries(this.errorMetrics.errorsBySeverity),
     };
   }
 

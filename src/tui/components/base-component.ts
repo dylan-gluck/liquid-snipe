@@ -55,9 +55,11 @@ export abstract class BaseComponent {
       keys: mergedConfig.keys,
       mouse: mergedConfig.mouse,
       tags: true,
-      border: mergedConfig.border ? {
-        type: 'line',
-      } : undefined,
+      border: mergedConfig.border
+        ? {
+            type: 'line',
+          }
+        : undefined,
       style: {
         border: {
           fg: this.theme.border,
@@ -237,7 +239,7 @@ export abstract class BaseComponent {
 
   protected colorizePositive(value: number, text?: string): string {
     const displayText = text || value.toString();
-    return value >= 0 
+    return value >= 0
       ? `{${this.theme.success}-fg}${displayText}{/}`
       : `{${this.theme.error}-fg}${displayText}{/}`;
   }
@@ -284,7 +286,7 @@ export abstract class BaseComponent {
   protected handleError(error: unknown, context: string): void {
     const message = error instanceof Error ? error.message : String(error);
     this.logger.error(`${context}: ${message}`);
-    
+
     // Optionally show error in component
     if (this._isVisible) {
       this.setContent(`{${this.theme.error}-fg}Error: ${message}{/}`);

@@ -23,9 +23,9 @@ export interface CircuitBreakerStats {
 }
 
 export enum CircuitBreakerState {
-  CLOSED = 'CLOSED',     // Normal operation
-  OPEN = 'OPEN',         // Circuit is open, failing fast
-  HALF_OPEN = 'HALF_OPEN' // Testing if service has recovered
+  CLOSED = 'CLOSED', // Normal operation
+  OPEN = 'OPEN', // Circuit is open, failing fast
+  HALF_OPEN = 'HALF_OPEN', // Testing if service has recovered
 }
 
 /**
@@ -52,7 +52,7 @@ export class CircuitBreaker extends EventEmitter {
       successThreshold: options.successThreshold,
       timeout: options.timeout,
       monitoringPeriod: options.monitoringPeriod,
-      name: options.name || 'CircuitBreaker'
+      name: options.name || 'CircuitBreaker',
     };
     this.logger = new Logger(`CircuitBreaker:${this.options.name}`);
   }
@@ -114,7 +114,9 @@ export class CircuitBreaker extends EventEmitter {
     this.totalFailures++;
     this.lastFailureTime = Date.now();
 
-    this.logger.warning(`Circuit breaker failure ${this.failureCount}/${this.options.failureThreshold}: ${error.message}`);
+    this.logger.warning(
+      `Circuit breaker failure ${this.failureCount}/${this.options.failureThreshold}: ${error.message}`,
+    );
 
     if (this.state === CircuitBreakerState.HALF_OPEN) {
       // Any failure in half-open state opens the circuit
@@ -151,7 +153,7 @@ export class CircuitBreaker extends EventEmitter {
       from: previousState,
       to: newState,
       timestamp: now,
-      stats: this.getStats()
+      stats: this.getStats(),
     });
 
     // Reset counters when moving to half-open
@@ -184,7 +186,7 @@ export class CircuitBreaker extends EventEmitter {
   public getStats(): CircuitBreakerStats {
     const now = Date.now();
     let uptime = now - this.stateChangeTime;
-    
+
     // If currently open, don't count as uptime
     if (this.state === CircuitBreakerState.OPEN) {
       uptime = 0;
@@ -200,7 +202,7 @@ export class CircuitBreaker extends EventEmitter {
       lastSuccessTime: this.lastSuccessTime,
       nextAttemptTime: this.nextAttemptTime,
       uptime,
-      downtimeTotal: this.downtimeTotal
+      downtimeTotal: this.downtimeTotal,
     };
   }
 
@@ -216,13 +218,12 @@ export class CircuitBreaker extends EventEmitter {
     const stats = this.getStats();
     const now = Date.now();
     const totalTime = now - (this.lastSuccessTime || now);
-    
+
     return {
       isHealthy: this.state !== CircuitBreakerState.OPEN,
       availability: totalTime > 0 ? ((totalTime - stats.downtimeTotal) / totalTime) * 100 : 100,
       errorRate: stats.totalRequests > 0 ? (stats.totalFailures / stats.totalRequests) * 100 : 0,
-      meanTimeBetweenFailures: stats.totalFailures > 1 ? 
-        totalTime / stats.totalFailures : 0
+      meanTimeBetweenFailures: stats.totalFailures > 1 ? totalTime / stats.totalFailures : 0,
     };
   }
 
@@ -287,13 +288,13 @@ export class CircuitBreakerRegistry {
    */
   public getOrCreate(name: string, options: CircuitBreakerOptions): CircuitBreaker {
     let breaker = this.breakers.get(name);
-    
+
     if (!breaker) {
       breaker = new CircuitBreaker({ ...options, name });
       this.breakers.set(name, breaker);
-      
+
       // Log state changes
-      breaker.on('stateChange', (event) => {
+      breaker.on('stateChange', event => {
         this.logger.info(`Circuit breaker ${name} changed state: ${event.from} -> ${event.to}`);
       });
 
@@ -333,7 +334,7 @@ export class CircuitBreakerRegistry {
    */
   public getAllStats(): Record<string, CircuitBreakerStats> {
     const stats: Record<string, CircuitBreakerStats> = {};
-    
+
     for (const [name, breaker] of this.breakers) {
       stats[name] = breaker.getStats();
     }
@@ -352,7 +353,7 @@ export class CircuitBreakerRegistry {
   } {
     const breakerStats = Array.from(this.breakers.values()).map(b => ({
       state: b.getState(),
-      health: b.getHealth()
+      health: b.getHealth(),
     }));
 
     const totalBreakers = breakerStats.length;
@@ -363,7 +364,7 @@ export class CircuitBreakerRegistry {
       totalBreakers,
       healthyBreakers,
       openBreakers,
-      overallHealthy: openBreakers === 0
+      overallHealthy: openBreakers === 0,
     };
   }
 

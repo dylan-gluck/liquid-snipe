@@ -7,7 +7,7 @@ export enum PositionState {
   EXITING = 'EXITING',
   CLOSED = 'CLOSED',
   ERROR = 'ERROR',
-  PAUSED = 'PAUSED'
+  PAUSED = 'PAUSED',
 }
 
 export enum PositionStateTransition {
@@ -23,7 +23,7 @@ export enum PositionStateTransition {
   PAUSE_REQUESTED = 'PAUSE_REQUESTED',
   RESUME_REQUESTED = 'RESUME_REQUESTED',
   ERROR_OCCURRED = 'ERROR_OCCURRED',
-  RECOVERY_COMPLETED = 'RECOVERY_COMPLETED'
+  RECOVERY_COMPLETED = 'RECOVERY_COMPLETED',
 }
 
 export interface PositionStateContext {
@@ -55,13 +55,17 @@ export class PositionStateMachine {
   private currentState: PositionState = PositionState.CREATED;
   private context: PositionStateContext;
   private transitionRules: PositionStateTransitionRule[];
-  private stateHistory: Array<{ state: PositionState; timestamp: number; trigger?: PositionStateTransition }> = [];
+  private stateHistory: Array<{
+    state: PositionState;
+    timestamp: number;
+    trigger?: PositionStateTransition;
+  }> = [];
 
   constructor(initialContext: Omit<PositionStateContext, 'entryTimestamp'>) {
     this.logger = new Logger(`PositionStateMachine:${initialContext.positionId}`);
     this.context = {
       ...initialContext,
-      entryTimestamp: Date.now()
+      entryTimestamp: Date.now(),
     };
     this.transitionRules = this.initializeTransitionRules();
     this.recordStateChange(PositionState.CREATED);
@@ -74,9 +78,9 @@ export class PositionStateMachine {
         from: PositionState.CREATED,
         to: PositionState.MONITORING,
         trigger: PositionStateTransition.POSITION_OPENED,
-        action: (context) => {
+        action: context => {
           this.logger.info(`Position ${context.positionId} opened, starting monitoring`);
-        }
+        },
       },
 
       // From MONITORING
@@ -84,25 +88,27 @@ export class PositionStateMachine {
         from: PositionState.MONITORING,
         to: PositionState.EXIT_PENDING,
         trigger: PositionStateTransition.EXIT_CONDITION_MET,
-        action: (context) => {
-          this.logger.info(`Exit condition met for position ${context.positionId}: ${context.exitReason}`);
-        }
+        action: context => {
+          this.logger.info(
+            `Exit condition met for position ${context.positionId}: ${context.exitReason}`,
+          );
+        },
       },
       {
         from: PositionState.MONITORING,
         to: PositionState.EXIT_PENDING,
         trigger: PositionStateTransition.MANUAL_EXIT_REQUESTED,
-        action: (context) => {
+        action: context => {
           this.logger.info(`Manual exit requested for position ${context.positionId}`);
-        }
+        },
       },
       {
         from: PositionState.MONITORING,
         to: PositionState.PAUSED,
         trigger: PositionStateTransition.PAUSE_REQUESTED,
-        action: (context) => {
+        action: context => {
           this.logger.info(`Position monitoring paused for ${context.positionId}`);
-        }
+        },
       },
 
       // From EXIT_PENDING
@@ -110,17 +116,19 @@ export class PositionStateMachine {
         from: PositionState.EXIT_PENDING,
         to: PositionState.EXITING,
         trigger: PositionStateTransition.EXIT_APPROVED,
-        action: (context) => {
-          this.logger.info(`Exit approved for position ${context.positionId}, starting exit process`);
-        }
+        action: context => {
+          this.logger.info(
+            `Exit approved for position ${context.positionId}, starting exit process`,
+          );
+        },
       },
       {
         from: PositionState.EXIT_PENDING,
         to: PositionState.MONITORING,
         trigger: PositionStateTransition.EXIT_REJECTED,
-        action: (context) => {
+        action: context => {
           this.logger.info(`Exit rejected for position ${context.positionId}, resuming monitoring`);
-        }
+        },
       },
 
       // From EXITING
@@ -128,24 +136,27 @@ export class PositionStateMachine {
         from: PositionState.EXITING,
         to: PositionState.CLOSED,
         trigger: PositionStateTransition.EXIT_COMPLETED,
-        action: (context) => {
+        action: context => {
           context.exitTimestamp = Date.now();
           const duration = context.exitTimestamp - context.entryTimestamp;
           this.logger.info(`Position ${context.positionId} closed after ${duration}ms`);
-          
+
           if (context.currentPrice && context.entryPrice) {
-            context.pnlPercent = ((context.currentPrice - context.entryPrice) / context.entryPrice) * 100;
+            context.pnlPercent =
+              ((context.currentPrice - context.entryPrice) / context.entryPrice) * 100;
             context.pnlUsd = (context.currentPrice - context.entryPrice) * context.amount;
           }
-        }
+        },
       },
       {
         from: PositionState.EXITING,
         to: PositionState.ERROR,
         trigger: PositionStateTransition.EXIT_FAILED,
-        action: (context) => {
-          this.logger.error(`Position exit failed for ${context.positionId}: ${context.error?.message}`);
-        }
+        action: context => {
+          this.logger.error(
+            `Position exit failed for ${context.positionId}: ${context.error?.message}`,
+          );
+        },
       },
 
       // From PAUSED
@@ -153,17 +164,17 @@ export class PositionStateMachine {
         from: PositionState.PAUSED,
         to: PositionState.MONITORING,
         trigger: PositionStateTransition.RESUME_REQUESTED,
-        action: (context) => {
+        action: context => {
           this.logger.info(`Position monitoring resumed for ${context.positionId}`);
-        }
+        },
       },
       {
         from: PositionState.PAUSED,
         to: PositionState.EXIT_PENDING,
         trigger: PositionStateTransition.MANUAL_EXIT_REQUESTED,
-        action: (context) => {
+        action: context => {
           this.logger.info(`Manual exit requested for paused position ${context.positionId}`);
-        }
+        },
       },
 
       // From ERROR
@@ -171,19 +182,21 @@ export class PositionStateMachine {
         from: PositionState.ERROR,
         to: PositionState.MONITORING,
         trigger: PositionStateTransition.RECOVERY_COMPLETED,
-        action: (context) => {
-          this.logger.info(`Recovery completed for position ${context.positionId}, resuming monitoring`);
-        }
+        action: context => {
+          this.logger.info(
+            `Recovery completed for position ${context.positionId}, resuming monitoring`,
+          );
+        },
       },
       {
         from: PositionState.ERROR,
         to: PositionState.CLOSED,
         trigger: PositionStateTransition.EXIT_COMPLETED,
-        action: (context) => {
+        action: context => {
           this.logger.info(`Position ${context.positionId} force-closed due to error`);
           context.exitTimestamp = Date.now();
           context.exitReason = context.exitReason || 'Force closed due to error';
-        }
+        },
       },
 
       // Error transitions from any state except CLOSED
@@ -193,24 +206,30 @@ export class PositionStateMachine {
           from: state,
           to: PositionState.ERROR,
           trigger: PositionStateTransition.ERROR_OCCURRED,
-          action: (context) => {
-            this.logger.error(`Position ${context.positionId} encountered error: ${context.error?.message}`);
-          }
-        }))
+          action: context => {
+            this.logger.error(
+              `Position ${context.positionId} encountered error: ${context.error?.message}`,
+            );
+          },
+        })),
     ];
   }
 
-  public transition(trigger: PositionStateTransition, contextUpdates?: Partial<PositionStateContext>): boolean {
+  public transition(
+    trigger: PositionStateTransition,
+    contextUpdates?: Partial<PositionStateContext>,
+  ): boolean {
     // Update context if provided
     if (contextUpdates) {
       this.context = { ...this.context, ...contextUpdates };
     }
 
     // Find applicable transition rule
-    const rule = this.transitionRules.find(r => 
-      r.from === this.currentState && 
-      r.trigger === trigger &&
-      (!r.guard || r.guard(this.context))
+    const rule = this.transitionRules.find(
+      r =>
+        r.from === this.currentState &&
+        r.trigger === trigger &&
+        (!r.guard || r.guard(this.context)),
     );
 
     if (!rule) {
@@ -241,10 +260,11 @@ export class PositionStateMachine {
   public updatePrice(currentPrice: number): void {
     this.context.currentPrice = currentPrice;
     this.context.lastPriceUpdate = Date.now();
-    
+
     // Calculate P&L
     if (this.context.entryPrice) {
-      this.context.pnlPercent = ((currentPrice - this.context.entryPrice) / this.context.entryPrice) * 100;
+      this.context.pnlPercent =
+        ((currentPrice - this.context.entryPrice) / this.context.entryPrice) * 100;
       this.context.pnlUsd = (currentPrice - this.context.entryPrice) * this.context.amount;
     }
   }
@@ -257,7 +277,11 @@ export class PositionStateMachine {
     return { ...this.context };
   }
 
-  public getStateHistory(): Array<{ state: PositionState; timestamp: number; trigger?: PositionStateTransition }> {
+  public getStateHistory(): Array<{
+    state: PositionState;
+    timestamp: number;
+    trigger?: PositionStateTransition;
+  }> {
     return [...this.stateHistory];
   }
 
@@ -270,11 +294,9 @@ export class PositionStateMachine {
   }
 
   public isActive(): boolean {
-    return [
-      PositionState.MONITORING,
-      PositionState.EXIT_PENDING,
-      PositionState.EXITING
-    ].includes(this.currentState);
+    return [PositionState.MONITORING, PositionState.EXIT_PENDING, PositionState.EXITING].includes(
+      this.currentState,
+    );
   }
 
   public isPaused(): boolean {
@@ -286,11 +308,9 @@ export class PositionStateMachine {
   }
 
   public canExit(): boolean {
-    return [
-      PositionState.MONITORING,
-      PositionState.PAUSED,
-      PositionState.ERROR
-    ].includes(this.currentState);
+    return [PositionState.MONITORING, PositionState.PAUSED, PositionState.ERROR].includes(
+      this.currentState,
+    );
   }
 
   public canPause(): boolean {
@@ -317,7 +337,7 @@ export class PositionStateMachine {
   public getPnL(): { percent: number; usd: number } {
     return {
       percent: this.context.pnlPercent || 0,
-      usd: this.context.pnlUsd || 0
+      usd: this.context.pnlUsd || 0,
     };
   }
 
@@ -333,7 +353,7 @@ export class PositionStateMachine {
     this.stateHistory.push({
       state,
       timestamp: Date.now(),
-      trigger
+      trigger,
     });
 
     // Keep only last 50 state changes per position
@@ -343,10 +363,11 @@ export class PositionStateMachine {
   }
 
   public canTransition(trigger: PositionStateTransition): boolean {
-    return this.transitionRules.some(r => 
-      r.from === this.currentState && 
-      r.trigger === trigger &&
-      (!r.guard || r.guard(this.context))
+    return this.transitionRules.some(
+      r =>
+        r.from === this.currentState &&
+        r.trigger === trigger &&
+        (!r.guard || r.guard(this.context)),
     );
   }
 }

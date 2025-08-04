@@ -54,13 +54,17 @@ export class ConsoleNotificationChannel implements NotificationChannel {
   }
 
   async send(notification: ProcessedNotification): Promise<boolean> {
-    const logLevel = notification.level === 'error' ? 'error' :
-                    notification.level === 'warning' ? 'warning' : 'info';
+    const logLevel =
+      notification.level === 'error'
+        ? 'error'
+        : notification.level === 'warning'
+          ? 'warning'
+          : 'info';
 
     this.logger[logLevel](`[${notification.level.toUpperCase()}] ${notification.title}`, {
       message: notification.message,
       urgent: notification.urgent,
-      data: notification.data
+      data: notification.data,
     });
 
     return true;
@@ -88,17 +92,21 @@ export class EventNotificationChannel implements NotificationChannel {
           status: 'ERROR',
           timestamp: notification.timestamp,
           reason: notification.title,
-          data: notification.data
+          data: notification.data,
         });
       }
 
       // Always emit as log event
       this.eventManager.emit('log', {
-        level: notification.level === 'info' ? 'info' : 
-               notification.level === 'warning' ? 'warning' : 'error',
+        level:
+          notification.level === 'info'
+            ? 'info'
+            : notification.level === 'warning'
+              ? 'warning'
+              : 'error',
         message: `${notification.title}: ${notification.message}`,
         timestamp: notification.timestamp,
-        data: notification.data
+        data: notification.data,
       });
 
       return true;
@@ -134,7 +142,7 @@ export class FileNotificationChannel implements NotificationChannel {
         title: notification.title,
         message: notification.message,
         urgent: notification.urgent,
-        data: notification.data
+        data: notification.data,
       };
 
       this.logger.info(`FILE_LOG: ${JSON.stringify(logEntry)}`);
@@ -162,7 +170,7 @@ export class NotificationSystem {
     totalFailed: 0,
     byChannel: {},
     byLevel: {},
-    recentFailures: []
+    recentFailures: [],
   };
   private cooldowns = new Map<string, number>();
   private hourlyCounts = new Map<string, Array<{ timestamp: number; count: number }>>();
@@ -194,10 +202,10 @@ export class NotificationSystem {
       enabled: true,
       conditions: [
         { field: 'level', operator: 'equals', value: 'error' },
-        { field: 'urgent', operator: 'equals', value: true }
+        { field: 'urgent', operator: 'equals', value: true },
       ],
       channels: ['console', 'event', 'file'],
-      priority: 'CRITICAL'
+      priority: 'CRITICAL',
     });
 
     // High-volume trading notifications
@@ -205,12 +213,10 @@ export class NotificationSystem {
       id: 'trading-alerts',
       name: 'Trading Alert Notifications',
       enabled: true,
-      conditions: [
-        { field: 'data.component', operator: 'equals', value: 'TradeExecutor' }
-      ],
+      conditions: [{ field: 'data.component', operator: 'equals', value: 'TradeExecutor' }],
       channels: ['console', 'event'],
       priority: 'HIGH',
-      maxPerHour: 10
+      maxPerHour: 10,
     });
 
     // System status notifications
@@ -218,12 +224,10 @@ export class NotificationSystem {
       id: 'system-status',
       name: 'System Status Notifications',
       enabled: true,
-      conditions: [
-        { field: 'title', operator: 'contains', value: 'System' }
-      ],
+      conditions: [{ field: 'title', operator: 'contains', value: 'System' }],
       channels: ['console', 'file'],
       priority: 'MEDIUM',
-      cooldownMinutes: 5
+      cooldownMinutes: 5,
     });
 
     // Connection issue notifications
@@ -231,12 +235,10 @@ export class NotificationSystem {
       id: 'connection-issues',
       name: 'Connection Issue Notifications',
       enabled: true,
-      conditions: [
-        { field: 'data.component', operator: 'regex', value: '.*Connection.*' }
-      ],
+      conditions: [{ field: 'data.component', operator: 'regex', value: '.*Connection.*' }],
       channels: ['console', 'event'],
       priority: 'HIGH',
-      cooldownMinutes: 2
+      cooldownMinutes: 2,
     });
   }
 
@@ -286,11 +288,11 @@ export class NotificationSystem {
     const initialLength = this.rules.length;
     this.rules = this.rules.filter(rule => rule.id !== ruleId);
     const removed = this.rules.length < initialLength;
-    
+
     if (removed) {
       this.logger.info(`Removed notification rule: ${ruleId}`);
     }
-    
+
     return removed;
   }
 
@@ -302,12 +304,12 @@ export class NotificationSystem {
       ...notification,
       channelResults: {},
       processedAt: Date.now(),
-      retryCount: 0
+      retryCount: 0,
     };
 
     // Find matching rules
-    const matchingRules = this.rules.filter(rule => 
-      rule.enabled && this.matchesRule(notification, rule)
+    const matchingRules = this.rules.filter(
+      rule => rule.enabled && this.matchesRule(notification, rule),
     );
 
     if (matchingRules.length === 0) {
@@ -327,11 +329,11 @@ export class NotificationSystem {
       // Send through specified channels
       for (const channelName of rule.channels) {
         const channel = this.channels.get(channelName);
-        
+
         if (!channel || !channel.enabled) {
           processed.channelResults[channelName] = {
             success: false,
-            error: 'Channel not available or disabled'
+            error: 'Channel not available or disabled',
           };
           continue;
         }
@@ -339,7 +341,7 @@ export class NotificationSystem {
         if (!channel.supports(processed)) {
           processed.channelResults[channelName] = {
             success: false,
-            error: 'Channel does not support this notification type'
+            error: 'Channel does not support this notification type',
           };
           continue;
         }
@@ -361,9 +363,9 @@ export class NotificationSystem {
           const errorMessage = error instanceof Error ? error.message : String(error);
           processed.channelResults[channelName] = {
             success: false,
-            error: errorMessage
+            error: errorMessage,
           };
-          
+
           this.stats.totalFailed++;
           this.stats.byChannel[channelName].failed++;
           this.recordFailure(channelName, errorMessage);
@@ -386,7 +388,7 @@ export class NotificationSystem {
   private matchesRule(notification: NotificationEvent, rule: NotificationRule): boolean {
     return rule.conditions.every(condition => {
       const value = this.getNestedValue(notification, condition.field);
-      
+
       switch (condition.operator) {
         case 'equals':
           return value === condition.value;
@@ -417,7 +419,7 @@ export class NotificationSystem {
     // Check cooldown
     if (rule.cooldownMinutes) {
       const lastSent = this.cooldowns.get(rule.id);
-      if (lastSent && (now - lastSent) < (rule.cooldownMinutes * 60 * 1000)) {
+      if (lastSent && now - lastSent < rule.cooldownMinutes * 60 * 1000) {
         return false;
       }
     }
@@ -425,10 +427,10 @@ export class NotificationSystem {
     // Check hourly rate limit
     if (rule.maxPerHour) {
       const hourlyCounts = this.hourlyCounts.get(rule.id) || [];
-      const hourAgo = now - (60 * 60 * 1000);
+      const hourAgo = now - 60 * 60 * 1000;
       const recentCounts = hourlyCounts.filter(entry => entry.timestamp > hourAgo);
       const totalInLastHour = recentCounts.reduce((sum, entry) => sum + entry.count, 0);
-      
+
       if (totalInLastHour >= rule.maxPerHour) {
         return false;
       }
@@ -452,11 +454,11 @@ export class NotificationSystem {
     if (rule.maxPerHour) {
       const hourlyCounts = this.hourlyCounts.get(rule.id) || [];
       hourlyCounts.push({ timestamp: now, count: 1 });
-      
+
       // Clean old entries
-      const hourAgo = now - (60 * 60 * 1000);
+      const hourAgo = now - 60 * 60 * 1000;
       const filteredCounts = hourlyCounts.filter(entry => entry.timestamp > hourAgo);
-      
+
       this.hourlyCounts.set(rule.id, filteredCounts);
     }
   }
@@ -468,13 +470,13 @@ export class NotificationSystem {
     this.stats.recentFailures.push({
       timestamp: Date.now(),
       channel: channelName,
-      error
+      error,
     });
 
     // Keep only recent failures (last 24 hours)
-    const dayAgo = Date.now() - (24 * 60 * 60 * 1000);
+    const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
     this.stats.recentFailures = this.stats.recentFailures.filter(
-      failure => failure.timestamp > dayAgo
+      failure => failure.timestamp > dayAgo,
     );
   }
 
@@ -493,7 +495,7 @@ export class NotificationSystem {
       ...this.stats,
       byChannel: { ...this.stats.byChannel },
       byLevel: { ...this.stats.byLevel },
-      recentFailures: [...this.stats.recentFailures]
+      recentFailures: [...this.stats.recentFailures],
     };
   }
 
@@ -510,7 +512,7 @@ export class NotificationSystem {
   public getChannels(): Array<{ name: string; enabled: boolean }> {
     return Array.from(this.channels.values()).map(channel => ({
       name: channel.name,
-      enabled: channel.enabled
+      enabled: channel.enabled,
     }));
   }
 
@@ -551,7 +553,7 @@ export class NotificationSystem {
       message: 'This is a test notification to verify the system is working correctly.',
       timestamp: Date.now(),
       urgent: false,
-      data: { test: true }
+      data: { test: true },
     };
 
     return await this.sendNotification(testNotification);

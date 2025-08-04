@@ -27,9 +27,9 @@ export class DataManagementWorkflowCoordinator {
   private logger: Logger;
   private workflowState: DataManagementWorkflowState = {
     backupStatus: 'IDLE',
-    cleanupStatus: 'IDLE'
+    cleanupStatus: 'IDLE',
   };
-  
+
   private backupInterval?: NodeJS.Timeout;
   private cleanupInterval?: NodeJS.Timeout;
 
@@ -41,13 +41,13 @@ export class DataManagementWorkflowCoordinator {
       enabled: true,
       intervalHours: 24,
       maxBackups: 7,
-      compressionEnabled: true
+      compressionEnabled: true,
     },
     private cleanupConfig: DataCleanupConfig = {
       enabled: true,
       retentionDays: 30,
-      cleanupIntervalHours: 24
-    }
+      cleanupIntervalHours: 24,
+    },
   ) {
     this.logger = new Logger('DataManagementWorkflow');
     this.setupEventHandlers();
@@ -111,17 +111,19 @@ export class DataManagementWorkflowCoordinator {
     }, intervalMs);
 
     // Execute initial backup if none exists recently
-    const timeSinceLastBackup = this.workflowState.lastBackup 
-      ? Date.now() - this.workflowState.lastBackup 
+    const timeSinceLastBackup = this.workflowState.lastBackup
+      ? Date.now() - this.workflowState.lastBackup
       : Infinity;
-    
+
     if (timeSinceLastBackup > intervalMs) {
       await this.executeBackup();
     }
   }
 
   private async startCleanupWorkflow(): Promise<void> {
-    this.logger.info(`Starting cleanup workflow (interval: ${this.cleanupConfig.cleanupIntervalHours}h)`);
+    this.logger.info(
+      `Starting cleanup workflow (interval: ${this.cleanupConfig.cleanupIntervalHours}h)`,
+    );
 
     // Set up periodic cleanup
     const intervalMs = this.cleanupConfig.cleanupIntervalHours * 60 * 60 * 1000;
@@ -130,10 +132,10 @@ export class DataManagementWorkflowCoordinator {
     }, intervalMs);
 
     // Execute initial cleanup if none exists recently
-    const timeSinceLastCleanup = this.workflowState.lastCleanup 
-      ? Date.now() - this.workflowState.lastCleanup 
+    const timeSinceLastCleanup = this.workflowState.lastCleanup
+      ? Date.now() - this.workflowState.lastCleanup
       : Infinity;
-    
+
     if (timeSinceLastCleanup > intervalMs) {
       await this.executeCleanup();
     }
@@ -169,9 +171,8 @@ export class DataManagementWorkflowCoordinator {
       this.eventManager.emit('backupCompleted', {
         backupPath,
         timestamp: Date.now(),
-        success: true
+        success: true,
       });
-
     } catch (error) {
       this.workflowState.backupStatus = 'FAILED';
       this.logger.error(`Database backup failed: ${(error as Error).message}`);
@@ -179,7 +180,7 @@ export class DataManagementWorkflowCoordinator {
       // Emit backup failure event
       this.eventManager.emit('backupFailed', {
         error: (error as Error).message,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
     }
   }
@@ -194,11 +195,11 @@ export class DataManagementWorkflowCoordinator {
     this.workflowState.cleanupStatus = 'IN_PROGRESS';
 
     try {
-      const cutoffTime = Date.now() - (this.cleanupConfig.retentionDays * 24 * 60 * 60 * 1000);
-      
+      const cutoffTime = Date.now() - this.cleanupConfig.retentionDays * 24 * 60 * 60 * 1000;
+
       // Clean up old log events
       const deletedLogs = await this.dbManager.cleanupOldEvents(cutoffTime);
-      
+
       // Clean up old trade data (optional, based on configuration)
       // const deletedTrades = await this.dbManager.cleanupOldTrades(cutoffTime);
 
@@ -211,9 +212,8 @@ export class DataManagementWorkflowCoordinator {
       this.eventManager.emit('cleanupCompleted', {
         deletedItems: { logs: deletedLogs },
         timestamp: Date.now(),
-        success: true
+        success: true,
       });
-
     } catch (error) {
       this.workflowState.cleanupStatus = 'FAILED';
       this.logger.error(`Data cleanup failed: ${(error as Error).message}`);
@@ -221,7 +221,7 @@ export class DataManagementWorkflowCoordinator {
       // Emit cleanup failure event
       this.eventManager.emit('cleanupFailed', {
         error: (error as Error).message,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
     }
   }
@@ -230,12 +230,12 @@ export class DataManagementWorkflowCoordinator {
     // In a real implementation, this would create a proper SQLite backup
     // For now, this is a placeholder
     this.logger.debug(`Creating backup at: ${backupPath}`);
-    
+
     // Placeholder implementation - in real code, you would:
     // 1. Use SQLite's backup API or file copy
     // 2. Optionally compress the backup
     // 3. Verify backup integrity
-    
+
     await new Promise(resolve => setTimeout(resolve, 100)); // Simulate backup time
   }
 
@@ -243,7 +243,7 @@ export class DataManagementWorkflowCoordinator {
     // In a real implementation, this would scan for old backup files
     // and remove them if we exceed maxBackups
     this.logger.debug('Cleaning up old backups...');
-    
+
     // Placeholder implementation
   }
 
@@ -253,7 +253,7 @@ export class DataManagementWorkflowCoordinator {
     if (update.database) {
       // Database configuration updated
       this.logger.info('Database configuration updated');
-      
+
       // In a real implementation, you might need to:
       // 1. Reconnect to database with new settings
       // 2. Update backup/cleanup schedules
@@ -263,13 +263,13 @@ export class DataManagementWorkflowCoordinator {
     if (update.backup) {
       // Backup configuration updated
       this.backupConfig = { ...this.backupConfig, ...update.backup };
-      
+
       // Restart backup workflow with new settings
       if (this.backupInterval) {
         clearInterval(this.backupInterval);
         this.backupInterval = undefined;
       }
-      
+
       if (this.backupConfig.enabled) {
         await this.startBackupWorkflow();
       }
@@ -278,13 +278,13 @@ export class DataManagementWorkflowCoordinator {
     if (update.cleanup) {
       // Cleanup configuration updated
       this.cleanupConfig = { ...this.cleanupConfig, ...update.cleanup };
-      
+
       // Restart cleanup workflow with new settings
       if (this.cleanupInterval) {
         clearInterval(this.cleanupInterval);
         this.cleanupInterval = undefined;
       }
-      
+
       if (this.cleanupConfig.enabled) {
         await this.startCleanupWorkflow();
       }
@@ -293,7 +293,7 @@ export class DataManagementWorkflowCoordinator {
     // Emit configuration update completion
     this.eventManager.emit('configUpdateCompleted', {
       timestamp: Date.now(),
-      updatedSections: Object.keys(update)
+      updatedSections: Object.keys(update),
     });
   }
 

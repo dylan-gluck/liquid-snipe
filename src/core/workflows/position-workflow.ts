@@ -28,7 +28,7 @@ export class PositionWorkflowCoordinator {
     private positionManager: PositionManager,
     private dbManager: DatabaseManager,
     private isDryRun: boolean = false,
-    private monitoringIntervalMs: number = 60000 // 1 minute
+    private monitoringIntervalMs: number = 60000, // 1 minute
   ) {
     this.logger = new Logger('PositionWorkflow');
     this.setupEventHandlers();
@@ -77,7 +77,7 @@ export class PositionWorkflowCoordinator {
     }
 
     this.logger.info('Stopping position monitoring workflow...');
-    
+
     if (this.monitoringInterval) {
       clearInterval(this.monitoringInterval);
       this.monitoringInterval = undefined;
@@ -97,17 +97,18 @@ export class PositionWorkflowCoordinator {
 
       // Get all open positions
       const openPositions = await this.dbManager.getOpenPositions();
-      
+
       this.logger.debug(`Monitoring ${openPositions.length} open positions`);
 
       for (const position of openPositions) {
         try {
           await this.evaluatePositionForExit(position.id);
         } catch (error) {
-          this.logger.error(`Error evaluating position ${position.id}: ${(error as Error).message}`);
+          this.logger.error(
+            `Error evaluating position ${position.id}: ${(error as Error).message}`,
+          );
         }
       }
-
     } catch (error) {
       this.logger.error(`Position monitoring cycle failed: ${(error as Error).message}`);
     }
@@ -120,7 +121,7 @@ export class PositionWorkflowCoordinator {
     this.activePositionWorkflows.set(positionId, {
       monitoring: 'ACTIVE',
       exitEvaluation: 'PENDING',
-      exitExecution: 'PENDING'
+      exitExecution: 'PENDING',
     });
 
     this.logger.debug(`Position workflow initialized for: ${positionId}`);
@@ -165,17 +166,18 @@ export class PositionWorkflowCoordinator {
 
       if (exitResult.shouldExit) {
         this.logger.info(`Exit condition met for position ${positionId}: ${exitResult.reason}`);
-        
+
         await this.handleExitRequest({
           positionId,
           reason: exitResult.reason,
           urgency: exitResult.urgency,
-          partialExitPercentage: exitResult.partialExitPercentage
+          partialExitPercentage: exitResult.partialExitPercentage,
         });
       }
-
     } catch (error) {
-      this.logger.error(`Position evaluation failed for ${positionId}: ${(error as Error).message}`);
+      this.logger.error(
+        `Position evaluation failed for ${positionId}: ${(error as Error).message}`,
+      );
       this.updateWorkflowState(positionId, { exitEvaluation: 'FAILED' });
     }
   }
@@ -199,15 +201,14 @@ export class PositionWorkflowCoordinator {
         positionId,
         reason,
         urgency,
-        partialExitPercentage
+        partialExitPercentage,
       });
 
       this.updateWorkflowState(positionId, { exitExecution: 'COMPLETED' });
       this.logger.info(`Position exit completed: ${positionId}`);
-      
+
       // Cleanup completed workflow
       this.cleanupWorkflow(positionId);
-
     } catch (error) {
       this.logger.error(`Position exit failed for ${positionId}: ${(error as Error).message}`);
       this.updateWorkflowState(positionId, { exitExecution: 'FAILED' });

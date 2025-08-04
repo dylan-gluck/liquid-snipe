@@ -35,21 +35,25 @@ export class WalletInfo extends BaseComponent {
     theme: TuiTheme,
     config: ComponentConfig = {},
   ) {
-    super(theme, {
-      title: 'Wallet Overview',
-      top: 0,
-      left: 0,
-      width: '100%',
-      height: '50%',
-      border: true,
-      scrollable: true,
-      ...config,
-    }, 'WalletInfo');
+    super(
+      theme,
+      {
+        title: 'Wallet Overview',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '50%',
+        border: true,
+        scrollable: true,
+        ...config,
+      },
+      'WalletInfo',
+    );
   }
 
   protected createElement(): void {
     super.createElement();
-    
+
     // Set initial content
     this.updateDisplay();
   }
@@ -60,14 +64,8 @@ export class WalletInfo extends BaseComponent {
   }
 
   private formatWalletDisplay(): string {
-    const { 
-      totalValueUsd, 
-      totalPnlUsd, 
-      totalPnlPercent, 
-      openPositions, 
-      todayTrades, 
-      balances 
-    } = this.walletSummary;
+    const { totalValueUsd, totalPnlUsd, totalPnlPercent, openPositions, todayTrades, balances } =
+      this.walletSummary;
 
     // Portfolio summary section
     let content = `{bold}Portfolio Summary{/bold}\n`;
@@ -82,12 +80,13 @@ export class WalletInfo extends BaseComponent {
     if (balances.length > 0) {
       content += `{bold}Token Balances{/bold}\n`;
       content += `${'-'.repeat(20)}\n`;
-      
+
       // Sort balances by USD value (descending)
       const sortedBalances = [...balances].sort((a, b) => b.valueUsd - a.valueUsd);
-      
+
       for (const balance of sortedBalances) {
-        if (balance.valueUsd > 0.01) { // Only show meaningful balances
+        if (balance.valueUsd > 0.01) {
+          // Only show meaningful balances
           content += `${balance.symbol.padEnd(8)} `;
           content += `${this.formatTokenAmount(balance.balance).padStart(12)} `;
           content += `${this.formatCurrency(balance.valueUsd).padStart(10)}\n`;
@@ -116,7 +115,6 @@ export class WalletInfo extends BaseComponent {
     try {
       await this.loadWalletData();
       this.updateDisplay();
-      
     } catch (error) {
       this.handleError(error, 'Failed to refresh wallet info');
     }
@@ -125,46 +123,47 @@ export class WalletInfo extends BaseComponent {
   private async loadWalletData(): Promise<void> {
     // Get open positions for portfolio summary
     const openPositions = await this.dbManager.getOpenPositions();
-    
+
     // Get today's trades
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayTrades = 0; // Would need to implement getTradesSince method
-    
+
     // Calculate portfolio values from positions
     let totalValueUsd = 0;
     let totalPnlUsd = 0;
-    
+
     for (const position of openPositions) {
       // Mock current price calculation (in real implementation, would fetch from price service)
       const currentPrice = position.entryPrice * (1 + (Math.random() - 0.5) * 0.4);
       const currentValue = position.amount * currentPrice;
       const entryValue = position.amount * position.entryPrice;
-      
+
       totalValueUsd += currentValue;
-      totalPnlUsd += (currentValue - entryValue);
+      totalPnlUsd += currentValue - entryValue;
     }
-    
-    const totalPnlPercent = totalValueUsd > 0 ? (totalPnlUsd / (totalValueUsd - totalPnlUsd)) * 100 : 0;
-    
+
+    const totalPnlPercent =
+      totalValueUsd > 0 ? (totalPnlUsd / (totalValueUsd - totalPnlUsd)) * 100 : 0;
+
     // Mock wallet balances (in real implementation, would fetch from blockchain)
     const mockBalances: WalletBalance[] = [
       {
         token: 'So11111111111111111111111111111111111111112', // SOL
         symbol: 'SOL',
         balance: 12.5,
-        price: 180.50,
-        valueUsd: 12.5 * 180.50,
+        price: 180.5,
+        valueUsd: 12.5 * 180.5,
       },
       {
         token: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
         symbol: 'USDC',
         balance: 2450.75,
-        price: 1.00,
+        price: 1.0,
         valueUsd: 2450.75,
       },
     ];
-    
+
     // Add any tokens from open positions to balances
     const positionTokens = new Set(openPositions.map(p => p.tokenAddress));
     for (const tokenAddress of positionTokens) {
@@ -184,14 +183,14 @@ export class WalletInfo extends BaseComponent {
         }
       }
     }
-    
+
     // Update total value to include base token balances
     const baseTokenValue = mockBalances
       .filter(b => ['SOL', 'USDC', 'USDT'].includes(b.symbol))
       .reduce((sum, b) => sum + b.valueUsd, 0);
-    
+
     totalValueUsd += baseTokenValue;
-    
+
     this.walletSummary = {
       totalValueUsd,
       totalPnlUsd,
@@ -224,7 +223,7 @@ export class WalletInfo extends BaseComponent {
   // Method to update specific token balance (for real-time updates)
   public updateTokenBalance(tokenAddress: string, balance: number, price: number): void {
     const existingIndex = this.walletSummary.balances.findIndex(b => b.token === tokenAddress);
-    
+
     const tokenBalance: WalletBalance = {
       token: tokenAddress,
       symbol: tokenAddress.substring(0, 8), // Fallback symbol
@@ -232,13 +231,13 @@ export class WalletInfo extends BaseComponent {
       price,
       valueUsd: balance * price,
     };
-    
+
     if (existingIndex >= 0) {
       this.walletSummary.balances[existingIndex] = tokenBalance;
     } else {
       this.walletSummary.balances.push(tokenBalance);
     }
-    
+
     // Recalculate total value
     this.recalculateTotals();
     this.updateDisplay();
@@ -246,8 +245,8 @@ export class WalletInfo extends BaseComponent {
 
   private recalculateTotals(): void {
     this.walletSummary.totalValueUsd = this.walletSummary.balances.reduce(
-      (sum, balance) => sum + balance.valueUsd, 
-      0
+      (sum, balance) => sum + balance.valueUsd,
+      0,
     );
   }
 

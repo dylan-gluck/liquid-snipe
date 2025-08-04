@@ -107,6 +107,114 @@ const defaultConfig: AppConfig = {
         exitOnSellPercentage: 10, // Exit if dev sells 10% or more
       },
     },
+    // Advanced exit strategies (disabled by default)
+    {
+      type: 'trailing-stop',
+      name: 'Trailing Stop Loss',
+      description: 'Dynamic stop loss that trails behind the highest price',
+      enabled: false,
+      params: {
+        initialStopPercent: 15,
+        trailPercent: 10,
+        activationPercent: 20,
+        maxTrailAmount: 50,
+      },
+    },
+    {
+      type: 'volatility-stop',
+      name: 'Volatility-Adjusted Stop',
+      description: 'Stop loss that adjusts based on price volatility',
+      enabled: false,
+      params: {
+        baseStopPercent: 15,
+        volatilityMultiplier: 0.5,
+        lookbackPeriodMinutes: 30,
+        minStopPercent: 10,
+        maxStopPercent: 25,
+      },
+    },
+    {
+      type: 'volume-based',
+      name: 'Volume Exit Strategy',
+      description: 'Exit based on trading volume changes',
+      enabled: false,
+      params: {
+        minVolumeUsd: 1000,
+        volumeDropThresholdPercent: 70,
+        lookbackPeriodMinutes: 15,
+        exitOnVolumeSpike: true,
+        volumeSpikeMultiplier: 5,
+      },
+    },
+    {
+      type: 'multi-condition',
+      name: 'Combined Exit Strategy',
+      description: 'Exit when multiple conditions are met',
+      enabled: false,
+      params: {
+        operator: 'OR',
+        priority: 'HIGHEST_URGENCY',
+        conditions: [
+          {
+            type: 'profit',
+            enabled: true,
+            params: {
+              profitPercentage: 30,
+            },
+          },
+          {
+            type: 'trailing-stop',
+            enabled: true,
+            params: {
+              initialStopPercent: 20,
+              trailPercent: 15,
+              activationPercent: 25,
+            },
+          },
+        ],
+      },
+    },
+    {
+      type: 'partial-exit',
+      name: 'Staged Exit Strategy',
+      description: 'Exit positions in stages based on different conditions',
+      enabled: false,
+      params: {
+        stages: [
+          {
+            triggerCondition: {
+              type: 'profit',
+              enabled: true,
+              params: {
+                profitPercentage: 25,
+              },
+            },
+            exitPercentage: 30,
+          },
+          {
+            triggerCondition: {
+              type: 'profit',
+              enabled: true,
+              params: {
+                profitPercentage: 50,
+              },
+            },
+            exitPercentage: 50,
+          },
+          {
+            triggerCondition: {
+              type: 'profit',
+              enabled: true,
+              params: {
+                profitPercentage: 100,
+              },
+            },
+            exitPercentage: 100,
+          },
+        ],
+        minStageGapPercent: 5,
+      },
+    },
   ],
   database: {
     path: './data/liquid-snipe.db',

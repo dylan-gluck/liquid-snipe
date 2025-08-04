@@ -80,15 +80,86 @@ export interface DeveloperActivityExitParams {
   exitOnSellPercentage?: number;
 }
 
+export interface MultiConditionExitParams {
+  conditions: ExitStrategyConfig[];
+  operator: 'AND' | 'OR';
+  priority?: 'HIGHEST_URGENCY' | 'FIRST_MATCH' | 'ALL_CONDITIONS';
+}
+
+export interface TrailingStopLossParams {
+  initialStopPercent: number;
+  trailPercent: number;
+  activationPercent?: number;
+  maxTrailAmount?: number;
+}
+
+export interface VolatilityBasedStopParams {
+  baseStopPercent: number;
+  volatilityMultiplier: number;
+  lookbackPeriodMinutes: number;
+  minStopPercent?: number;
+  maxStopPercent?: number;
+}
+
+export interface VolumeBasedExitParams {
+  minVolumeUsd: number;
+  volumeDropThresholdPercent: number;
+  lookbackPeriodMinutes: number;
+  exitOnVolumeSpike?: boolean;
+  volumeSpikeMultiplier?: number;
+}
+
+export interface SentimentAnalysisParams {
+  sources: ('social' | 'onchain' | 'technical')[];
+  sentimentThreshold: number;
+  confidenceThreshold: number;
+  lookbackPeriodMinutes?: number;
+}
+
+export interface CreatorMonitoringParams {
+  creatorWalletAddress?: string;
+  autoDetectCreator: boolean;
+  sellThresholdPercent: number;
+  monitoringPeriodMinutes: number;
+  exitOnFirstSell?: boolean;
+}
+
+export interface PartialExitParams {
+  stages: {
+    triggerCondition: ExitStrategyConfig;
+    exitPercentage: number;
+  }[];
+  minStageGapPercent?: number;
+}
+
 export type ExitStrategyParams =
   | ProfitExitParams
   | TimeExitParams
   | LossExitParams
   | LiquidityExitParams
-  | DeveloperActivityExitParams;
+  | DeveloperActivityExitParams
+  | MultiConditionExitParams
+  | TrailingStopLossParams
+  | VolatilityBasedStopParams
+  | VolumeBasedExitParams
+  | SentimentAnalysisParams
+  | CreatorMonitoringParams
+  | PartialExitParams;
 
 export interface ExitStrategyConfig {
-  type: 'profit' | 'time' | 'loss' | 'liquidity' | 'developer-activity';
+  type:
+    | 'profit'
+    | 'time'
+    | 'loss'
+    | 'liquidity'
+    | 'developer-activity'
+    | 'multi-condition'
+    | 'trailing-stop'
+    | 'volatility-stop'
+    | 'volume-based'
+    | 'sentiment-analysis'
+    | 'creator-monitoring'
+    | 'partial-exit';
   name?: string;
   description?: string;
   enabled: boolean;
@@ -243,4 +314,48 @@ export interface LogEvent {
   message: string;
   timestamp: number;
   data?: Record<string, any>;
+}
+
+// Additional data structures for advanced exit strategies
+export interface PricePoint {
+  price: number;
+  timestamp: number;
+  source: string;
+}
+
+export interface VolumeData {
+  volumeUsd: number;
+  timestamp: number;
+  source: string;
+}
+
+export interface VolatilityMetrics {
+  standardDeviation: number;
+  averagePrice: number;
+  priceRange: number;
+  volatilityPercent: number;
+  timestamp: number;
+}
+
+export interface TrendAnalysis {
+  direction: 'UP' | 'DOWN' | 'SIDEWAYS';
+  strength: number; // 0-100
+  confidence: number; // 0-100
+  timestamp: number;
+}
+
+export interface SentimentData {
+  score: number; // -100 to 100
+  confidence: number; // 0-100
+  sources: string[];
+  timestamp: number;
+}
+
+export interface CreatorActivity {
+  walletAddress: string;
+  transactionType: 'BUY' | 'SELL' | 'TRANSFER';
+  amount: number;
+  percentage: number; // Percentage of total holdings
+  timestamp: number;
+  txSignature: string;
 }

@@ -77,7 +77,7 @@ export class TuiController {
   private initializeLayout(): void {
     // Main header
     this.layout = {} as TuiLayout;
-    
+
     this.layout.header = blessed.box({
       top: 0,
       left: 0,
@@ -289,17 +289,19 @@ export class TuiController {
 
   private updateHeader(): void {
     const statusComponent = this.components.get('status') as SystemStatus;
-    const statusInfo = statusComponent ? statusComponent.getStatusSummary() : { status: 'Unknown', connections: 0 };
-    
+    const statusInfo = statusComponent
+      ? statusComponent.getStatusSummary()
+      : { status: 'Unknown', connections: 0 };
+
     const title = `{bold}🚀 Liquid-Snipe{/bold}`;
-    const status = this.config.dryRun ? 
-      `{${this.theme.warning}-fg}[DRY RUN]{/}` : 
-      `{${this.theme.success}-fg}[ACTIVE]{/}`;
+    const status = this.config.dryRun
+      ? `{${this.theme.warning}-fg}[DRY RUN]{/}`
+      : `{${this.theme.success}-fg}[ACTIVE]{/}`;
     const connections = `{${this.theme.info}-fg}Connections: ${statusInfo.connections}{/}`;
     const currentTime = new Date().toLocaleTimeString();
 
     this.layout.header.setContent(
-      `${title} ${status} | ${connections} | {${this.theme.secondary}-fg}${currentTime}{/}`
+      `${title} ${status} | ${connections} | {${this.theme.secondary}-fg}${currentTime}{/}`,
     );
   }
 
@@ -307,7 +309,7 @@ export class TuiController {
     const viewName = this.currentView.charAt(0).toUpperCase() + this.currentView.slice(1);
     const keyBindings = [
       `{${this.theme.primary}-fg}1{/} Pools`,
-      `{${this.theme.primary}-fg}2{/} Positions`, 
+      `{${this.theme.primary}-fg}2{/} Positions`,
       `{${this.theme.primary}-fg}3{/} Logs`,
       `{${this.theme.primary}-fg}R{/} Refresh`,
       `{${this.theme.primary}-fg}P{/} Pause/Resume`,
@@ -315,9 +317,7 @@ export class TuiController {
       `{${this.theme.primary}-fg}Q{/} Quit`,
     ].join(' | ');
 
-    this.layout.footer.setContent(
-      `{bold}${viewName}{/bold} | ${keyBindings}`
-    );
+    this.layout.footer.setContent(`{bold}${viewName}{/bold} | ${keyBindings}`);
   }
 
   private async handleCommand(command: string): Promise<void> {
@@ -351,7 +351,9 @@ export class TuiController {
           break;
       }
     } catch (error) {
-      this.logger.error(`Command execution failed: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(
+        `Command execution failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -455,7 +457,9 @@ Press any key to close...
         this.screen.render();
       });
     } catch (error) {
-      this.logger.error(`Failed to get stats: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(
+        `Failed to get stats: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -484,7 +488,7 @@ Press any key to close...
 
   public start(): void {
     this.logger.info('Starting TUI');
-    
+
     // Initial render
     this.updateHeader();
     this.updateFooter();
@@ -503,14 +507,14 @@ Press any key to close...
 
   public stop(): void {
     this.logger.info('Stopping TUI');
-    
+
     if (this.refreshInterval) {
       clearInterval(this.refreshInterval);
       this.refreshInterval = null;
     }
 
     this.isVisible = false;
-    
+
     // Clean up components
     this.components.forEach(component => {
       if (typeof component.destroy === 'function') {

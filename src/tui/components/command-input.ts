@@ -26,14 +26,18 @@ export class CommandInput extends BaseComponent {
     private commandHandler: CommandHandler,
     config: ComponentConfig = {},
   ) {
-    super(theme, {
-      top: 0,
-      left: 0,
-      width: '100%',
-      height: '100%',
-      border: false,
-      ...config,
-    }, 'CommandInput');
+    super(
+      theme,
+      {
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        border: false,
+        ...config,
+      },
+      'CommandInput',
+    );
 
     this.createInputElements();
     this.setupInputHandlers();
@@ -41,7 +45,7 @@ export class CommandInput extends BaseComponent {
 
   protected createElement(): void {
     super.createElement();
-    
+
     // Make the main element transparent as we'll handle layout in child elements
     this.element.style = {
       ...this.element.style,
@@ -148,7 +152,7 @@ export class CommandInput extends BaseComponent {
   private async executeCommand(command: string): Promise<void> {
     this.lastCommand = command;
     this.showStatus('Executing...', 'info');
-    
+
     try {
       await this.commandHandler(command);
       this.showStatus(`Executed: ${command}`, 'success', 2000);
@@ -165,12 +169,12 @@ export class CommandInput extends BaseComponent {
     }
 
     this.commandHistory.commands.push(command);
-    
+
     // Trim history if it gets too long
     if (this.commandHistory.commands.length > this.commandHistory.maxHistory) {
       this.commandHistory.commands.shift();
     }
-    
+
     // Reset history index
     this.commandHistory.currentIndex = -1;
   }
@@ -181,12 +185,11 @@ export class CommandInput extends BaseComponent {
     }
 
     const newIndex = this.commandHistory.currentIndex + direction;
-    
+
     if (newIndex >= 0 && newIndex < this.commandHistory.commands.length) {
       this.commandHistory.currentIndex = newIndex;
-      const command = this.commandHistory.commands[
-        this.commandHistory.commands.length - 1 - newIndex
-      ];
+      const command =
+        this.commandHistory.commands[this.commandHistory.commands.length - 1 - newIndex];
       this.inputElement.setValue(command);
       this.element.screen?.render();
     } else if (newIndex < 0) {
@@ -200,7 +203,7 @@ export class CommandInput extends BaseComponent {
   private handleTabCompletion(): void {
     const currentValue = this.inputElement.getValue();
     const completions = this.getCompletions(currentValue);
-    
+
     if (completions.length === 1) {
       // Single completion - apply it
       this.inputElement.setValue(completions[0]);
@@ -239,10 +242,17 @@ export class CommandInput extends BaseComponent {
     this.showStatus(`Completions: ${completionText}`, 'info', 3000);
   }
 
-  private showStatus(message: string, type: 'info' | 'success' | 'error' = 'info', duration = 1000): void {
-    const color = type === 'error' ? this.theme.error :
-                  type === 'success' ? this.theme.success :
-                  this.theme.info;
+  private showStatus(
+    message: string,
+    type: 'info' | 'success' | 'error' = 'info',
+    duration = 1000,
+  ): void {
+    const color =
+      type === 'error'
+        ? this.theme.error
+        : type === 'success'
+          ? this.theme.success
+          : this.theme.info;
 
     this.statusElement.setContent(`{${color}-fg}${message}{/}`);
     this.element.screen?.render();
@@ -305,7 +315,7 @@ export class CommandInput extends BaseComponent {
   // Set maximum history size
   public setMaxHistorySize(size: number): void {
     this.commandHistory.maxHistory = Math.max(1, size);
-    
+
     // Trim current history if needed
     while (this.commandHistory.commands.length > this.commandHistory.maxHistory) {
       this.commandHistory.commands.shift();

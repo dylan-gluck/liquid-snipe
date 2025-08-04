@@ -11,6 +11,16 @@ import { EventProcessor } from '../events/types';
 import { Logger } from '../utils/logger';
 import { Position, ExitStrategyConfig, TradeResult, Trade } from '../types';
 import { PositionModel } from '../db/models/position';
+import {
+  MultiConditionExitStrategy,
+  TrailingStopLossExitStrategy,
+  VolatilityBasedStopExitStrategy,
+  VolumeBasedExitStrategy,
+  SentimentAnalysisExitStrategy,
+  CreatorMonitoringExitStrategy,
+  PartialExitStrategy,
+  AdvancedStrategyDataProvider,
+} from './advanced-exit-strategies';
 
 /**
  * Interface for current token price data
@@ -254,18 +264,20 @@ export interface PositionManagerOptions {
 /**
  * Main PositionManager class
  */
-export class PositionManager {
+export class PositionManager implements AdvancedStrategyDataProvider {
   private logger: Logger;
   private db: DatabaseManager;
   private eventManager: EventProcessor;
   private strategies: Map<
     ExitStrategyConfig['type'],
-    new (config: ExitStrategyConfig) => ExitStrategy
+    new (config: ExitStrategyConfig, dataProvider?: AdvancedStrategyDataProvider) => ExitStrategy
   > = new Map();
   private monitoringTimer?: NodeJS.Timeout;
   private options: Required<PositionManagerOptions>;
   private currentPrices: Map<string, TokenPrice> = new Map();
   private pendingExits: Set<string> = new Set();
+  private trailingStopData: Map<string, { highestPrice: number; lastStopPrice: number }> =
+    new Map();
 
   constructor(
     db: DatabaseManager,
@@ -310,6 +322,15 @@ export class PositionManager {
     this.strategies.set('loss', LossExitStrategy);
     this.strategies.set('liquidity', LiquidityExitStrategy);
     this.strategies.set('developer-activity', DeveloperActivityExitStrategy);
+
+    // Advanced strategies
+    this.strategies.set('multi-condition', MultiConditionExitStrategy);
+    this.strategies.set('trailing-stop', TrailingStopLossExitStrategy);
+    this.strategies.set('volatility-stop', VolatilityBasedStopExitStrategy);
+    this.strategies.set('volume-based', VolumeBasedExitStrategy);
+    this.strategies.set('sentiment-analysis', SentimentAnalysisExitStrategy);
+    this.strategies.set('creator-monitoring', CreatorMonitoringExitStrategy);
+    this.strategies.set('partial-exit', PartialExitStrategy);
   }
 
   /**
@@ -405,7 +426,20 @@ export class PositionManager {
       };
     }
 
-    const strategy = new StrategyClass(position.exitStrategy);
+    // Check if strategy needs data provider (advanced strategies)
+    const needsDataProvider = [
+      'multi-condition',
+      'trailing-stop',
+      'volatility-stop',
+      'volume-based',
+      'sentiment-analysis',
+      'creator-monitoring',
+    ].includes(position.exitStrategy.type);
+
+    const strategy = needsDataProvider
+      ? new StrategyClass(position.exitStrategy, this)
+      : new StrategyClass(position.exitStrategy);
+
     return strategy.evaluate(position, currentPrice);
   }
 
@@ -661,5 +695,97 @@ export class PositionManager {
     }
 
     this.logger.info('PositionManager shutdown complete');
+  }
+
+  // AdvancedStrategyDataProvider implementation
+  async getPriceHistory(
+    tokenAddress: string,
+    minutes: number,
+  ): Promise<import('../types').PricePoint[]> {
+    // This is a placeholder implementation
+    // In production, this would fetch price history from the database or external API
+    const currentPrice = this.currentPrices.get(tokenAddress);
+    if (!currentPrice) {
+      return [];
+    }
+
+    // Generate mock price history for now
+    const priceHistory: import('../types').PricePoint[] = [];
+    const basePrice = currentPrice.price;
+    const intervals = Math.min(minutes, 60); // Max 60 data points
+
+    for (let i = intervals; i >= 0; i--) {
+      const timestamp = Date.now() - i * 60 * 1000;
+      const volatility = Math.random() * 0.1 - 0.05; // ±5% random volatility
+      const price = basePrice * (1 + volatility);
+
+      priceHistory.push({
+        price,
+        timestamp,
+        source: 'mock',
+      });
+    }
+
+    return priceHistory;
+  }
+
+  async getVolumeHistory(
+    tokenAddress: string,
+    minutes: number,
+  ): Promise<import('../types').VolumeData[]> {
+    // Placeholder implementation
+    // In production, this would fetch volume data from the database or external API
+    const volumeHistory: import('../types').VolumeData[] = [];
+    const baseVolume = 10000; // Mock base volume
+
+    for (let i = minutes; i >= 0; i--) {
+      const timestamp = Date.now() - i * 60 * 1000;
+      const volumeMultiplier = Math.random() * 2 + 0.5; // 0.5x to 2.5x variation
+      const volumeUsd = baseVolume * volumeMultiplier;
+
+      volumeHistory.push({
+        volumeUsd,
+        timestamp,
+        source: 'mock',
+      });
+    }
+
+    return volumeHistory;
+  }
+
+  async getSentimentData(tokenAddress: string): Promise<import('../types').SentimentData[]> {
+    // Placeholder implementation
+    // In production, this would fetch sentiment data from external APIs
+    return [
+      {
+        score: Math.random() * 200 - 100, // -100 to 100
+        confidence: Math.random() * 100,
+        sources: ['social', 'technical'],
+        timestamp: Date.now(),
+      },
+    ];
+  }
+
+  async getCreatorActivity(
+    tokenAddress: string,
+    minutes: number,
+  ): Promise<import('../types').CreatorActivity[]> {
+    // Placeholder implementation
+    // In production, this would monitor creator wallet transactions
+    return [];
+  }
+
+  async getTrailingStopData(
+    positionId: string,
+  ): Promise<{ highestPrice: number; lastStopPrice: number } | null> {
+    return this.trailingStopData.get(positionId) || null;
+  }
+
+  async updateTrailingStopData(
+    positionId: string,
+    highestPrice: number,
+    stopPrice: number,
+  ): Promise<void> {
+    this.trailingStopData.set(positionId, { highestPrice, lastStopPrice: stopPrice });
   }
 }

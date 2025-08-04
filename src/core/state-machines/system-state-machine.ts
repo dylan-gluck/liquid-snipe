@@ -8,7 +8,7 @@ export enum SystemState {
   MAINTENANCE = 'MAINTENANCE',
   ERROR = 'ERROR',
   SHUTTING_DOWN = 'SHUTTING_DOWN',
-  STOPPED = 'STOPPED'
+  STOPPED = 'STOPPED',
 }
 
 export enum SystemStateTransition {
@@ -22,7 +22,7 @@ export enum SystemStateTransition {
   SHUTDOWN_COMPLETED = 'SHUTDOWN_COMPLETED',
   ERROR_OCCURRED = 'ERROR_OCCURRED',
   RECOVERY_COMPLETED = 'RECOVERY_COMPLETED',
-  FORCE_STOP = 'FORCE_STOP'
+  FORCE_STOP = 'FORCE_STOP',
 }
 
 export interface SystemStateContext {
@@ -60,7 +60,11 @@ export class SystemStateMachine {
   private currentState: SystemState = SystemState.INITIALIZING;
   private context: SystemStateContext;
   private transitionRules: SystemStateTransitionRule[];
-  private stateHistory: Array<{ state: SystemState; timestamp: number; trigger?: SystemStateTransition }> = [];
+  private stateHistory: Array<{
+    state: SystemState;
+    timestamp: number;
+    trigger?: SystemStateTransition;
+  }> = [];
 
   constructor() {
     this.logger = new Logger('SystemStateMachine');
@@ -77,13 +81,13 @@ export class SystemStateMachine {
         rpc: 'DISCONNECTED',
         blockchain: 'STOPPED',
         trading: 'STOPPED',
-        tui: 'STOPPED'
+        tui: 'STOPPED',
       },
       metrics: {
         totalTrades: 0,
         openPositions: 0,
-        uptime: 0
-      }
+        uptime: 0,
+      },
     };
   }
 
@@ -94,21 +98,22 @@ export class SystemStateMachine {
         from: SystemState.INITIALIZING,
         to: SystemState.READY,
         trigger: SystemStateTransition.INITIALIZATION_COMPLETED,
-        guard: (context) => {
-          return context.components.database === 'CONNECTED' &&
-                 context.components.rpc === 'CONNECTED';
+        guard: context => {
+          return (
+            context.components.database === 'CONNECTED' && context.components.rpc === 'CONNECTED'
+          );
         },
-        action: (context) => {
+        action: context => {
           this.logger.info('System initialization completed successfully');
-        }
+        },
       },
       {
         from: SystemState.INITIALIZING,
         to: SystemState.ERROR,
         trigger: SystemStateTransition.ERROR_OCCURRED,
-        action: (context) => {
+        action: context => {
           this.logger.error(`System initialization failed: ${context.lastError?.message}`);
-        }
+        },
       },
 
       // From READY
@@ -116,18 +121,18 @@ export class SystemStateMachine {
         from: SystemState.READY,
         to: SystemState.RUNNING,
         trigger: SystemStateTransition.START_REQUESTED,
-        action: (context) => {
+        action: context => {
           context.startTime = Date.now();
           this.logger.info('System started');
-        }
+        },
       },
       {
         from: SystemState.READY,
         to: SystemState.SHUTTING_DOWN,
         trigger: SystemStateTransition.SHUTDOWN_REQUESTED,
-        action: (context) => {
+        action: context => {
           this.logger.info('System shutdown requested from ready state');
-        }
+        },
       },
 
       // From RUNNING
@@ -135,25 +140,27 @@ export class SystemStateMachine {
         from: SystemState.RUNNING,
         to: SystemState.PAUSED,
         trigger: SystemStateTransition.PAUSE_REQUESTED,
-        action: (context) => {
+        action: context => {
           this.logger.info(`System paused: ${context.pauseReason || 'No reason provided'}`);
-        }
+        },
       },
       {
         from: SystemState.RUNNING,
         to: SystemState.MAINTENANCE,
         trigger: SystemStateTransition.MAINTENANCE_MODE_REQUESTED,
-        action: (context) => {
-          this.logger.info(`Entering maintenance mode: ${context.maintenanceReason || 'No reason provided'}`);
-        }
+        action: context => {
+          this.logger.info(
+            `Entering maintenance mode: ${context.maintenanceReason || 'No reason provided'}`,
+          );
+        },
       },
       {
         from: SystemState.RUNNING,
         to: SystemState.SHUTTING_DOWN,
         trigger: SystemStateTransition.SHUTDOWN_REQUESTED,
-        action: (context) => {
+        action: context => {
           this.logger.info('System shutdown requested');
-        }
+        },
       },
 
       // From PAUSED
@@ -161,17 +168,17 @@ export class SystemStateMachine {
         from: SystemState.PAUSED,
         to: SystemState.RUNNING,
         trigger: SystemStateTransition.RESUME_REQUESTED,
-        action: (context) => {
+        action: context => {
           this.logger.info('System resumed from pause');
-        }
+        },
       },
       {
         from: SystemState.PAUSED,
         to: SystemState.SHUTTING_DOWN,
         trigger: SystemStateTransition.SHUTDOWN_REQUESTED,
-        action: (context) => {
+        action: context => {
           this.logger.info('System shutdown requested from paused state');
-        }
+        },
       },
 
       // From MAINTENANCE
@@ -179,17 +186,17 @@ export class SystemStateMachine {
         from: SystemState.MAINTENANCE,
         to: SystemState.RUNNING,
         trigger: SystemStateTransition.MAINTENANCE_COMPLETED,
-        action: (context) => {
+        action: context => {
           this.logger.info('Maintenance completed, resuming normal operation');
-        }
+        },
       },
       {
         from: SystemState.MAINTENANCE,
         to: SystemState.SHUTTING_DOWN,
         trigger: SystemStateTransition.SHUTDOWN_REQUESTED,
-        action: (context) => {
+        action: context => {
           this.logger.info('System shutdown requested from maintenance mode');
-        }
+        },
       },
 
       // From ERROR
@@ -197,22 +204,23 @@ export class SystemStateMachine {
         from: SystemState.ERROR,
         to: SystemState.READY,
         trigger: SystemStateTransition.RECOVERY_COMPLETED,
-        guard: (context) => {
-          return context.components.database === 'CONNECTED' &&
-                 context.components.rpc === 'CONNECTED';
+        guard: context => {
+          return (
+            context.components.database === 'CONNECTED' && context.components.rpc === 'CONNECTED'
+          );
         },
-        action: (context) => {
+        action: context => {
           this.logger.info('System recovery completed, returning to ready state');
           context.errorCount = 0;
-        }
+        },
       },
       {
         from: SystemState.ERROR,
         to: SystemState.SHUTTING_DOWN,
         trigger: SystemStateTransition.SHUTDOWN_REQUESTED,
-        action: (context) => {
+        action: context => {
           this.logger.info('System shutdown requested from error state');
-        }
+        },
       },
 
       // From SHUTTING_DOWN
@@ -220,23 +228,27 @@ export class SystemStateMachine {
         from: SystemState.SHUTTING_DOWN,
         to: SystemState.STOPPED,
         trigger: SystemStateTransition.SHUTDOWN_COMPLETED,
-        action: (context) => {
+        action: context => {
           const uptime = context.startTime ? Date.now() - context.startTime : 0;
           this.logger.info(`System shutdown completed. Total uptime: ${uptime}ms`);
           context.metrics.uptime = uptime;
-        }
+        },
       },
 
       // Error transitions from active states
-      ...([SystemState.READY, SystemState.RUNNING, SystemState.PAUSED, SystemState.MAINTENANCE]).map(state => ({
-        from: state,
-        to: SystemState.ERROR,
-        trigger: SystemStateTransition.ERROR_OCCURRED,
-        action: (context: SystemStateContext) => {
-          context.errorCount++;
-          this.logger.error(`System error occurred (count: ${context.errorCount}): ${context.lastError?.message}`);
-        }
-      })),
+      ...[SystemState.READY, SystemState.RUNNING, SystemState.PAUSED, SystemState.MAINTENANCE].map(
+        state => ({
+          from: state,
+          to: SystemState.ERROR,
+          trigger: SystemStateTransition.ERROR_OCCURRED,
+          action: (context: SystemStateContext) => {
+            context.errorCount++;
+            this.logger.error(
+              `System error occurred (count: ${context.errorCount}): ${context.lastError?.message}`,
+            );
+          },
+        }),
+      ),
 
       // Force stop from any state except STOPPED
       ...Object.values(SystemState)
@@ -247,22 +259,26 @@ export class SystemStateMachine {
           trigger: SystemStateTransition.FORCE_STOP,
           action: (context: SystemStateContext) => {
             this.logger.warning('System force stopped');
-          }
-        }))
+          },
+        })),
     ];
   }
 
-  public transition(trigger: SystemStateTransition, contextUpdates?: Partial<SystemStateContext>): boolean {
+  public transition(
+    trigger: SystemStateTransition,
+    contextUpdates?: Partial<SystemStateContext>,
+  ): boolean {
     // Update context if provided
     if (contextUpdates) {
       this.context = { ...this.context, ...contextUpdates };
     }
 
     // Find applicable transition rule
-    const rule = this.transitionRules.find(r => 
-      r.from === this.currentState && 
-      r.trigger === trigger &&
-      (!r.guard || r.guard(this.context))
+    const rule = this.transitionRules.find(
+      r =>
+        r.from === this.currentState &&
+        r.trigger === trigger &&
+        (!r.guard || r.guard(this.context)),
     );
 
     if (!rule) {
@@ -290,7 +306,10 @@ export class SystemStateMachine {
     return true;
   }
 
-  public updateComponentStatus(component: keyof SystemStateContext['components'], status: string): void {
+  public updateComponentStatus(
+    component: keyof SystemStateContext['components'],
+    status: string,
+  ): void {
     (this.context.components as any)[component] = status;
     this.logger.debug(`Component ${component} status updated to: ${status}`);
   }
@@ -305,17 +324,17 @@ export class SystemStateMachine {
 
   public performHealthCheck(): boolean {
     this.context.metrics.lastHealthCheck = Date.now();
-    
+
     const healthStatus = {
       database: this.context.components.database === 'CONNECTED',
       rpc: this.context.components.rpc === 'CONNECTED',
       blockchain: ['MONITORING', 'STOPPED'].includes(this.context.components.blockchain),
       trading: ['ACTIVE', 'PAUSED', 'STOPPED'].includes(this.context.components.trading),
-      tui: ['RUNNING', 'STOPPED'].includes(this.context.components.tui)
+      tui: ['RUNNING', 'STOPPED'].includes(this.context.components.tui),
     };
 
     const isHealthy = Object.values(healthStatus).every(status => status);
-    
+
     if (!isHealthy) {
       this.logger.warning('Health check failed:', healthStatus);
     }
@@ -331,7 +350,11 @@ export class SystemStateMachine {
     return { ...this.context };
   }
 
-  public getStateHistory(): Array<{ state: SystemState; timestamp: number; trigger?: SystemStateTransition }> {
+  public getStateHistory(): Array<{
+    state: SystemState;
+    timestamp: number;
+    trigger?: SystemStateTransition;
+  }> {
     return [...this.stateHistory];
   }
 
@@ -388,7 +411,7 @@ export class SystemStateMachine {
       SystemState.RUNNING,
       SystemState.PAUSED,
       SystemState.MAINTENANCE,
-      SystemState.ERROR
+      SystemState.ERROR,
     ].includes(this.currentState);
   }
 
@@ -404,7 +427,7 @@ export class SystemStateMachine {
     this.stateHistory.push({
       state,
       timestamp: Date.now(),
-      trigger
+      trigger,
     });
 
     // Keep only last 200 state changes
@@ -419,10 +442,11 @@ export class SystemStateMachine {
   }
 
   public canTransition(trigger: SystemStateTransition): boolean {
-    return this.transitionRules.some(r => 
-      r.from === this.currentState && 
-      r.trigger === trigger &&
-      (!r.guard || r.guard(this.context))
+    return this.transitionRules.some(
+      r =>
+        r.from === this.currentState &&
+        r.trigger === trigger &&
+        (!r.guard || r.guard(this.context)),
     );
   }
 }

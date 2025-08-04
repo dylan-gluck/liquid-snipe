@@ -15,7 +15,7 @@ import {
   PositionWorkflowCoordinator,
   UserInteractionWorkflowCoordinator,
   DataManagementWorkflowCoordinator,
-  ErrorRecoveryWorkflowCoordinator
+  ErrorRecoveryWorkflowCoordinator,
 } from './workflows';
 import { SystemStateMachine, SystemStateTransition } from './state-machines/system-state-machine';
 
@@ -31,17 +31,17 @@ export class CoreController {
   private tradeExecutor?: TradeExecutor;
   private positionManager?: PositionManager;
   private tuiController?: TuiController;
-  
+
   // Workflow coordinators
   private tradingWorkflow?: TradingWorkflowCoordinator;
   private positionWorkflow?: PositionWorkflowCoordinator;
   private userInteractionWorkflow?: UserInteractionWorkflowCoordinator;
   private dataManagementWorkflow?: DataManagementWorkflowCoordinator;
   private errorRecoveryWorkflow?: ErrorRecoveryWorkflowCoordinator;
-  
+
   // System state machine
   private systemStateMachine: SystemStateMachine;
-  
+
   private config: AppConfig;
   private shuttingDown = false;
   private positionMonitoringInterval?: NodeJS.Timeout;
@@ -58,15 +58,18 @@ export class CoreController {
       logToDatabase: true,
     });
     this.connectionManager = new ConnectionManager(config.rpc);
-    
+
     // Initialize system state machine
     this.systemStateMachine = new SystemStateMachine();
-    
+
     // Initialize event manager
-    this.eventManager = new EventManager({
-      storeEvents: true,
-      logToConsole: config.verbose,
-    }, this.dbManager);
+    this.eventManager = new EventManager(
+      {
+        storeEvents: true,
+        logToConsole: config.verbose,
+      },
+      this.dbManager,
+    );
 
     // Connect logger to event manager
     this.logger.setEventEmitter(logEvent => {
@@ -119,16 +122,12 @@ export class CoreController {
 
       // Initialize TUI if not disabled
       if (!this.config.disableTui) {
-        this.tuiController = new TuiController(
-          this.config,
-          this.dbManager,
-          this.eventManager
-        );
+        this.tuiController = new TuiController(this.config, this.dbManager, this.eventManager);
       }
 
       // Transition to ready state
       this.systemStateMachine.transition(SystemStateTransition.INITIALIZATION_COMPLETED);
-      
+
       // Emit ready status
       this.eventManager.emit('systemStatus', {
         status: 'READY',
@@ -138,19 +137,19 @@ export class CoreController {
       this.logger.info('Liquid-Snipe initialized successfully');
     } catch (error) {
       this.logger.error(`Failed to initialize: ${(error as Error).message}`);
-      
+
       // Transition to error state
       this.systemStateMachine.transition(SystemStateTransition.ERROR_OCCURRED, {
-        lastError: error as Error
+        lastError: error as Error,
       });
-      
+
       // Emit error status
       this.eventManager.emit('systemStatus', {
         status: 'ERROR',
         timestamp: Date.now(),
         reason: (error as Error).message,
       });
-      
+
       throw error;
     }
   }
@@ -159,34 +158,23 @@ export class CoreController {
     this.logger.info('Initializing trading components...');
 
     // Initialize token info service
-    this.tokenInfoService = new TokenInfoService(
-      this.connectionManager,
-      this.dbManager,
-      {
-        cacheExpiryMinutes: 30,
-      }
-    );
+    this.tokenInfoService = new TokenInfoService(this.connectionManager, this.dbManager, {
+      cacheExpiryMinutes: 30,
+    });
 
     // Initialize strategy engine
     this.strategyEngine = new StrategyEngine(
       this.connectionManager,
       this.tokenInfoService,
       this.dbManager,
-      this.config
+      this.config,
     );
 
     // Initialize trade executor
-    this.tradeExecutor = new TradeExecutor(
-      this.connectionManager,
-      this.dbManager,
-      this.config
-    );
+    this.tradeExecutor = new TradeExecutor(this.connectionManager, this.dbManager, this.config);
 
     // Initialize position manager
-    this.positionManager = new PositionManager(
-      this.dbManager,
-      this.eventManager
-    );
+    this.positionManager = new PositionManager(this.dbManager, this.eventManager);
 
     this.logger.info('Trading components initialized');
   }
@@ -198,7 +186,7 @@ export class CoreController {
     this.errorRecoveryWorkflow = new ErrorRecoveryWorkflowCoordinator(
       this.eventManager,
       this.connectionManager,
-      this.dbManager
+      this.dbManager,
     );
 
     // Initialize trading workflow coordinator
@@ -208,7 +196,7 @@ export class CoreController {
         this.strategyEngine,
         this.tradeExecutor,
         this.dbManager,
-        this.config.dryRun
+        this.config.dryRun,
       );
     }
 
@@ -219,7 +207,7 @@ export class CoreController {
         this.positionManager,
         this.dbManager,
         this.config.dryRun,
-        60000 // 1 minute monitoring interval
+        60000, // 1 minute monitoring interval
       );
     }
 
@@ -227,14 +215,14 @@ export class CoreController {
     this.userInteractionWorkflow = new UserInteractionWorkflowCoordinator(
       this.eventManager,
       this.dbManager,
-      this.config
+      this.config,
     );
 
     // Initialize data management workflow coordinator
     this.dataManagementWorkflow = new DataManagementWorkflowCoordinator(
       this.eventManager,
       this.dbManager,
-      this.config
+      this.config,
     );
 
     this.logger.info('Workflow coordinators initialized');
@@ -243,7 +231,7 @@ export class CoreController {
   private async initializeBlockchainWatcher(): Promise<void> {
     // Only initialize if we have enabled DEXes
     const enabledDexes = this.config.supportedDexes.filter(dex => dex.enabled);
-    
+
     if (enabledDexes.length === 0) {
       this.logger.warning('No DEXes enabled - blockchain monitoring disabled');
       return;
@@ -254,7 +242,7 @@ export class CoreController {
     this.blockchainWatcher = new BlockchainWatcher(
       this.connectionManager,
       enabledDexes,
-      'finalized'
+      'finalized',
     );
 
     // Connect blockchain watcher events
@@ -440,7 +428,7 @@ export class CoreController {
 
       // Log periodic status updates
       this.logger.info('System running in console mode...');
-      
+
       // TODO: Add more detailed status logging when other components are implemented
     }, 30000); // Log every 30 seconds
 
@@ -586,14 +574,16 @@ export class CoreController {
       { event: 'SIGINT', handler: sigintHandler },
       { event: 'SIGTERM', handler: sigtermHandler },
       { event: 'uncaughtException', handler: uncaughtExceptionHandler },
-      { event: 'unhandledRejection', handler: unhandledRejectionHandler }
+      { event: 'unhandledRejection', handler: unhandledRejectionHandler },
     );
   }
 
   // Core workflow handlers
   private async handleNewPoolEvent(poolEvent: NewPoolEvent): Promise<void> {
     try {
-      this.logger.info(`New pool detected: ${poolEvent.poolAddress} (${poolEvent.tokenA}/${poolEvent.tokenB})`);
+      this.logger.info(
+        `New pool detected: ${poolEvent.poolAddress} (${poolEvent.tokenA}/${poolEvent.tokenB})`,
+      );
 
       // Save pool to database
       await this.dbManager.addLiquidityPool({
@@ -613,7 +603,7 @@ export class CoreController {
       // Evaluate pool for trading if strategy engine is available
       if (this.strategyEngine) {
         const decision = await this.strategyEngine.evaluatePool(poolEvent);
-        
+
         if (decision) {
           this.eventManager.emit('tradeDecision', decision);
         }
@@ -625,13 +615,17 @@ export class CoreController {
 
   private async handleTradeDecision(decision: TradeDecision): Promise<void> {
     try {
-      this.logger.info(`Trade decision: ${decision.shouldTrade ? 'BUY' : 'SKIP'} ${decision.targetToken}`);
-      
+      this.logger.info(
+        `Trade decision: ${decision.shouldTrade ? 'BUY' : 'SKIP'} ${decision.targetToken}`,
+      );
+
       if (decision.shouldTrade) {
         if (this.config.dryRun) {
-          this.logger.info(`[DRY RUN] Would execute trade: ${decision.tradeAmountUsd} USD for ${decision.targetToken}`);
+          this.logger.info(
+            `[DRY RUN] Would execute trade: ${decision.tradeAmountUsd} USD for ${decision.targetToken}`,
+          );
           this.logger.info(`[DRY RUN] Reason: ${decision.reason}`);
-          
+
           // Emit a mock success result for dry run
           this.eventManager.emit('tradeResult', {
             success: true,
@@ -650,7 +644,7 @@ export class CoreController {
       }
     } catch (error) {
       this.logger.error(`Error handling trade decision: ${(error as Error).message}`);
-      
+
       // Emit failed result
       this.eventManager.emit('tradeResult', {
         success: false,
@@ -664,7 +658,7 @@ export class CoreController {
     try {
       if (result.success) {
         this.logger.info(`Trade executed successfully: ${result.signature}`);
-        
+
         if (result.positionId && this.positionManager) {
           // The position is automatically tracked in the database
           this.logger.info(`New position created: ${result.positionId}`);
@@ -706,10 +700,10 @@ export class CoreController {
 
     try {
       const openPositions = await this.dbManager.getOpenPositions();
-      
+
       if (openPositions.length > 0) {
         this.logger.debug(`Checking ${openPositions.length} open positions for exit conditions`);
-        
+
         for (const position of openPositions) {
           try {
             // Get position model from database
@@ -728,11 +722,16 @@ export class CoreController {
               source: 'placeholder',
             };
 
-            const exitResult = this.positionManager.evaluateExitConditions(positionModel, currentPrice);
-            
+            const exitResult = this.positionManager.evaluateExitConditions(
+              positionModel,
+              currentPrice,
+            );
+
             if (exitResult.shouldExit) {
-              this.logger.info(`Exit condition met for position ${position.id}: ${exitResult.reason}`);
-              
+              this.logger.info(
+                `Exit condition met for position ${position.id}: ${exitResult.reason}`,
+              );
+
               if (this.config.dryRun) {
                 this.logger.info(`[DRY RUN] Would exit position ${position.id}`);
               } else {
@@ -745,7 +744,9 @@ export class CoreController {
               }
             }
           } catch (positionError) {
-            this.logger.error(`Error checking position ${position.id}: ${(positionError as Error).message}`);
+            this.logger.error(
+              `Error checking position ${position.id}: ${(positionError as Error).message}`,
+            );
           }
         }
       }
@@ -829,16 +830,16 @@ export class CoreController {
     const components: Record<string, { status: string; healthy: boolean; errors?: number }> = {
       database: {
         status: this.systemStateMachine.getComponentStatus('database'),
-        healthy: this.systemStateMachine.getComponentStatus('database') === 'CONNECTED'
+        healthy: this.systemStateMachine.getComponentStatus('database') === 'CONNECTED',
       },
       rpc: {
         status: this.systemStateMachine.getComponentStatus('rpc'),
-        healthy: this.systemStateMachine.getComponentStatus('rpc') === 'CONNECTED'
+        healthy: this.systemStateMachine.getComponentStatus('rpc') === 'CONNECTED',
       },
       blockchain: {
         status: this.systemStateMachine.getComponentStatus('blockchain'),
-        healthy: this.systemStateMachine.getComponentStatus('blockchain') === 'MONITORING'
-      }
+        healthy: this.systemStateMachine.getComponentStatus('blockchain') === 'MONITORING',
+      },
     };
 
     // Add error counts if available
@@ -854,7 +855,7 @@ export class CoreController {
       overallHealthy: circuitBreakerHealth?.overallHealthy ?? true,
       components,
       errorStats: errorRecoveryStats?.errorHandlerStats,
-      circuitBreakers: circuitBreakerHealth
+      circuitBreakers: circuitBreakerHealth,
     };
   }
 }

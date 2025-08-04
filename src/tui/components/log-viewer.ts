@@ -24,10 +24,14 @@ export class LogViewer extends BaseComponent {
     theme: TuiTheme,
     config: ComponentConfig = {},
   ) {
-    super(theme, {
-      title: 'System Logs',
-      ...config,
-    }, 'LogViewer');
+    super(
+      theme,
+      {
+        title: 'System Logs',
+        ...config,
+      },
+      'LogViewer',
+    );
 
     this.createLogElement();
     this.setupLogEventHandlers();
@@ -35,12 +39,12 @@ export class LogViewer extends BaseComponent {
 
   protected createElement(): void {
     super.createElement();
-    
+
     this.element.style = {
       ...this.element.style,
       transparent: true,
     };
-    
+
     // Don't set border on main element since child will have its own
   }
 
@@ -126,11 +130,13 @@ export class LogViewer extends BaseComponent {
 Current filter: {${this.theme.primary}-fg}${this.filterLevel}{/}
 
 Available levels:
-${levels.map((level, i) => {
-  const prefix = i === currentIndex ? '→ ' : '  ';
-  const color = i === currentIndex ? this.theme.primary : this.theme.text;
-  return `${prefix}{${color}-fg}${level}{/}`;
-}).join('\n')}
+${levels
+  .map((level, i) => {
+    const prefix = i === currentIndex ? '→ ' : '  ';
+    const color = i === currentIndex ? this.theme.primary : this.theme.text;
+    return `${prefix}{${color}-fg}${level}{/}`;
+  })
+  .join('\n')}
 
 Use arrow keys to select, Enter to apply, Escape to cancel
     `;
@@ -165,11 +171,13 @@ Use arrow keys to select, Enter to apply, Escape to cancel
 Current filter: {${this.theme.primary}-fg}${this.filterLevel}{/}
 
 Available levels:
-${levels.map((level, i) => {
-  const prefix = i === selectedIndex ? '→ ' : '  ';
-  const color = i === selectedIndex ? this.theme.primary : this.theme.text;
-  return `${prefix}{${color}-fg}${level}{/}`;
-}).join('\n')}
+${levels
+  .map((level, i) => {
+    const prefix = i === selectedIndex ? '→ ' : '  ';
+    const color = i === selectedIndex ? this.theme.primary : this.theme.text;
+    return `${prefix}{${color}-fg}${level}{/}`;
+  })
+  .join('\n')}
 
 Use arrow keys to select, Enter to apply, Escape to cancel
       `;
@@ -208,7 +216,7 @@ Use arrow keys to select, Enter to apply, Escape to cancel
 
   private toggleAutoScroll(): void {
     this.autoScroll = !this.autoScroll;
-    
+
     const status = this.autoScroll ? 'enabled' : 'disabled';
     this.showTemporaryMessage(`Auto-scroll ${status}`, 'info');
   }
@@ -227,7 +235,7 @@ Use arrow keys to select, Enter to apply, Escape to cancel
     try {
       // Load recent logs from database
       const recentLogs = await this.dbManager.getRecentLogEvents(this.maxLogs);
-      
+
       // Convert to display entries
       this.logs = recentLogs.map(log => ({
         timestamp: log.timestamp,
@@ -239,7 +247,6 @@ Use arrow keys to select, Enter to apply, Escape to cancel
 
       this.refreshLogDisplay();
       this.updateTitle();
-
     } catch (error) {
       this.handleError(error, 'Failed to refresh logs');
     }
@@ -267,7 +274,7 @@ Use arrow keys to select, Enter to apply, Escape to cancel
     if (this.filterLevel === 'all') {
       return this.logs;
     }
-    
+
     return this.logs.filter(log => log.level === this.filterLevel);
   }
 
@@ -275,7 +282,7 @@ Use arrow keys to select, Enter to apply, Escape to cancel
     const timestamp = this.formatTime(Date.now());
     const levelColor = this.getLevelColor(level);
     const levelText = level.toUpperCase().padEnd(7);
-    
+
     return `{${this.theme.secondary}-fg}${timestamp}{/} {${levelColor}-fg}${levelText}{/} ${message}`;
   }
 
@@ -298,19 +305,19 @@ Use arrow keys to select, Enter to apply, Escape to cancel
   private updateTitle(): void {
     const filteredCount = this.getFilteredLogs().length;
     const totalCount = this.logs.length;
-    
+
     let title = `System Logs (${filteredCount}`;
     if (this.filterLevel !== 'all') {
       title += ` of ${totalCount}, filtered: ${this.filterLevel}`;
     }
     title += ')';
-    
+
     this.setTitle(title);
   }
 
   public addLogEntry(entry: LogDisplayEntry): void {
     this.logs.push(entry);
-    
+
     // Trim logs if we exceed maximum
     if (this.logs.length > this.maxLogs) {
       this.logs = this.logs.slice(-this.maxLogs);
@@ -331,7 +338,7 @@ Use arrow keys to select, Enter to apply, Escape to cancel
       formattedTime: this.formatTime(Date.now()),
       formattedMessage: this.formatLogMessage(level, message),
     };
-    
+
     this.addLogEntry(entry);
   }
 
@@ -344,7 +351,7 @@ Use arrow keys to select, Enter to apply, Escape to cancel
 
   public setMaxLogs(maxLogs: number): void {
     this.maxLogs = Math.max(100, maxLogs);
-    
+
     // Trim current logs if needed
     if (this.logs.length > this.maxLogs) {
       this.logs = this.logs.slice(-this.maxLogs);

@@ -41,9 +41,9 @@ export class ErrorRecoveryWorkflowCoordinator {
   private workflowState: ErrorRecoveryWorkflowState = {
     activeErrors: new Map(),
     recoveryInProgress: false,
-    circuitBreakers: new Map()
+    circuitBreakers: new Map(),
   };
-  
+
   private recoveryStrategies = new Map<string, RecoveryAction[]>();
   private errorHandler: ErrorHandler;
   private circuitBreakerRegistry: CircuitBreakerRegistry;
@@ -52,21 +52,21 @@ export class ErrorRecoveryWorkflowCoordinator {
   constructor(
     private eventManager: EventManager,
     private connectionManager: ConnectionManager,
-    private dbManager: DatabaseManager
+    private dbManager: DatabaseManager,
   ) {
     this.logger = new Logger('ErrorRecoveryWorkflow');
-    
+
     // Initialize new error handling components
     this.errorHandler = new ErrorHandler(eventManager, {
       maxRetries: 3,
       retryDelay: 1000,
       enableNotifications: true,
-      enableMetrics: true
+      enableMetrics: true,
     });
-    
+
     this.circuitBreakerRegistry = new CircuitBreakerRegistry();
     this.notificationSystem = new NotificationSystem(eventManager);
-    
+
     this.setupRecoveryStrategies();
     this.setupEventHandlers();
     this.setupCircuitBreakers();
@@ -77,25 +77,25 @@ export class ErrorRecoveryWorkflowCoordinator {
     this.recoveryStrategies.set('CONNECTION', [
       { type: 'RECONNECT', delay: 1000, maxAttempts: 5 },
       { type: 'FAILOVER', delay: 5000, maxAttempts: 3 },
-      { type: 'RESTART_COMPONENT', component: 'connection', delay: 10000, maxAttempts: 2 }
+      { type: 'RESTART_COMPONENT', component: 'connection', delay: 10000, maxAttempts: 2 },
     ]);
 
     // Database errors
     this.recoveryStrategies.set('DATABASE', [
       { type: 'RETRY', delay: 500, maxAttempts: 3 },
-      { type: 'RESTART_COMPONENT', component: 'database', delay: 5000, maxAttempts: 2 }
+      { type: 'RESTART_COMPONENT', component: 'database', delay: 5000, maxAttempts: 2 },
     ]);
 
     // Trading errors
     this.recoveryStrategies.set('TRADING', [
       { type: 'RETRY', delay: 2000, maxAttempts: 2 },
-      { type: 'FAILOVER', delay: 5000, maxAttempts: 1 }
+      { type: 'FAILOVER', delay: 5000, maxAttempts: 1 },
     ]);
 
     // System errors
     this.recoveryStrategies.set('SYSTEM', [
       { type: 'RESTART_COMPONENT', delay: 1000, maxAttempts: 3 },
-      { type: 'SHUTDOWN', delay: 30000, maxAttempts: 1 }
+      { type: 'SHUTDOWN', delay: 30000, maxAttempts: 1 },
     ]);
   }
 
@@ -110,7 +110,7 @@ export class ErrorRecoveryWorkflowCoordinator {
       await this.handleError({
         error,
         context: 'Solana RPC Connection',
-        category: { category: 'CONNECTION', severity: 'HIGH', recoverable: true }
+        category: { category: 'CONNECTION', severity: 'HIGH', recoverable: true },
       });
     });
 
@@ -119,7 +119,7 @@ export class ErrorRecoveryWorkflowCoordinator {
       await this.handleError({
         error: new Error('Maximum reconnection attempts reached'),
         context: 'Solana RPC Connection',
-        category: { category: 'CONNECTION', severity: 'CRITICAL', recoverable: false }
+        category: { category: 'CONNECTION', severity: 'CRITICAL', recoverable: false },
       });
     });
 
@@ -129,7 +129,7 @@ export class ErrorRecoveryWorkflowCoordinator {
         await this.handleError({
           error: new Error(status.reason || 'System error'),
           context: 'System Status Change',
-          category: { category: 'SYSTEM', severity: 'HIGH', recoverable: true }
+          category: { category: 'SYSTEM', severity: 'HIGH', recoverable: true },
         });
       }
     });
@@ -140,18 +140,22 @@ export class ErrorRecoveryWorkflowCoordinator {
     const context: ErrorContext = {
       component: this.extractComponentFromContext(errorData.context || 'Unknown'),
       operation: errorData.operation || 'unknown',
-      metadata: errorData.metadata
+      metadata: errorData.metadata,
     };
 
     const enrichedError = this.errorHandler.captureError(
       errorData.error,
       context,
-      errorData.category ? {
-        level: errorData.category.severity,
-        requiresImmedateAction: errorData.category.severity === 'CRITICAL',
-        affectsTrading: context.component.includes('Trade') || context.component.includes('Position'),
-        affectsSystemStability: context.component.includes('Connection') || context.component.includes('Database')
-      } : undefined
+      errorData.category
+        ? {
+            level: errorData.category.severity,
+            requiresImmedateAction: errorData.category.severity === 'CRITICAL',
+            affectsTrading:
+              context.component.includes('Trade') || context.component.includes('Position'),
+            affectsSystemStability:
+              context.component.includes('Connection') || context.component.includes('Database'),
+          }
+        : undefined,
     );
 
     // Legacy error event for backward compatibility
@@ -162,24 +166,26 @@ export class ErrorRecoveryWorkflowCoordinator {
       timestamp: Date.now(),
       category: errorData.category || { category: 'SYSTEM', severity: 'MEDIUM', recoverable: true },
       recoveryAttempts: 0,
-      maxRecoveryAttempts: this.getMaxRecoveryAttempts(errorData.category?.category || 'SYSTEM')
+      maxRecoveryAttempts: this.getMaxRecoveryAttempts(errorData.category?.category || 'SYSTEM'),
     };
 
     this.logger.error(`Error detected: ${errorEvent.context} - ${errorEvent.error.message}`);
-    
+
     // Add to active errors
     this.workflowState.activeErrors.set(errorEvent.id, errorEvent);
 
     // Check circuit breakers using the new registry
     const circuitBreaker = this.circuitBreakerRegistry.get(context.component);
     if (circuitBreaker && circuitBreaker.getState() === CircuitBreakerState.OPEN) {
-      this.logger.warning(`Circuit breaker ${context.component} is OPEN - skipping recovery attempt`);
+      this.logger.warning(
+        `Circuit breaker ${context.component} is OPEN - skipping recovery attempt`,
+      );
       return;
     }
 
     // Let the new error handler manage the recovery process
     const recoverySuccessful = await this.errorHandler.handleError(enrichedError);
-    
+
     if (recoverySuccessful) {
       this.workflowState.activeErrors.delete(errorEvent.id);
     }
@@ -203,35 +209,37 @@ export class ErrorRecoveryWorkflowCoordinator {
 
     try {
       const strategies = this.recoveryStrategies.get(errorEvent.category.category) || [];
-      
+
       for (const strategy of strategies) {
         if (errorEvent.recoveryAttempts >= (strategy.maxAttempts || 3)) {
           continue;
         }
 
         this.logger.info(`Attempting recovery: ${strategy.type} for ${errorEvent.context}`);
-        
+
         const success = await this.executeRecoveryAction(strategy, errorEvent);
-        
+
         errorEvent.recoveryAttempts++;
-        
+
         if (success) {
           this.logger.info(`Recovery successful for: ${errorEvent.context}`);
           this.workflowState.activeErrors.delete(errorEvent.id);
-          
+
           // Emit recovery success event
           this.eventManager.emit('recoverySuccess', {
             errorId: errorEvent.id,
             context: errorEvent.context,
             strategy: strategy.type,
             attempts: errorEvent.recoveryAttempts,
-            timestamp: Date.now()
+            timestamp: Date.now(),
           });
-          
+
           break;
         } else {
-          this.logger.warning(`Recovery attempt failed: ${strategy.type} for ${errorEvent.context}`);
-          
+          this.logger.warning(
+            `Recovery attempt failed: ${strategy.type} for ${errorEvent.context}`,
+          );
+
           // Wait before next attempt
           if (strategy.delay) {
             await new Promise(resolve => setTimeout(resolve, strategy.delay));
@@ -242,13 +250,13 @@ export class ErrorRecoveryWorkflowCoordinator {
       // If all recovery attempts failed
       if (errorEvent.recoveryAttempts >= errorEvent.maxRecoveryAttempts) {
         this.logger.error(`All recovery attempts exhausted for: ${errorEvent.context}`);
-        
+
         // Emit recovery failure event
         this.eventManager.emit('recoveryFailed', {
           errorId: errorEvent.id,
           context: errorEvent.context,
           totalAttempts: errorEvent.recoveryAttempts,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
 
         // Handle unrecoverable error
@@ -256,31 +264,33 @@ export class ErrorRecoveryWorkflowCoordinator {
           await this.handleCriticalError(errorEvent);
         }
       }
-
     } finally {
       this.workflowState.recoveryInProgress = false;
     }
   }
 
-  private async executeRecoveryAction(action: RecoveryAction, errorEvent: ErrorEvent): Promise<boolean> {
+  private async executeRecoveryAction(
+    action: RecoveryAction,
+    errorEvent: ErrorEvent,
+  ): Promise<boolean> {
     try {
       switch (action.type) {
         case 'RETRY':
           return await this.retryOperation(errorEvent);
-        
+
         case 'RECONNECT':
           return await this.reconnectComponent(errorEvent);
-        
+
         case 'RESTART_COMPONENT':
           return await this.restartComponent(action.component || 'unknown', errorEvent);
-        
+
         case 'FAILOVER':
           return await this.performFailover(errorEvent);
-        
+
         case 'SHUTDOWN':
           await this.performShutdown(errorEvent);
           return true; // Shutdown is always considered successful
-        
+
         default:
           this.logger.warning(`Unknown recovery action: ${action.type}`);
           return false;
@@ -293,7 +303,7 @@ export class ErrorRecoveryWorkflowCoordinator {
 
   private async retryOperation(errorEvent: ErrorEvent): Promise<boolean> {
     this.logger.debug(`Retrying operation for: ${errorEvent.context}`);
-    
+
     // In a real implementation, this would retry the failed operation
     // For now, simulate a retry with random success/failure
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -302,14 +312,14 @@ export class ErrorRecoveryWorkflowCoordinator {
 
   private async reconnectComponent(errorEvent: ErrorEvent): Promise<boolean> {
     this.logger.info(`Attempting to reconnect component: ${errorEvent.context}`);
-    
+
     try {
       if (errorEvent.context.includes('Connection') || errorEvent.context.includes('RPC')) {
         // Attempt to reconnect to Solana RPC
         await this.connectionManager.reconnect();
         return true;
       }
-      
+
       return false;
     } catch (error) {
       this.logger.error(`Reconnection failed: ${(error as Error).message}`);
@@ -319,19 +329,19 @@ export class ErrorRecoveryWorkflowCoordinator {
 
   private async restartComponent(component: string, errorEvent: ErrorEvent): Promise<boolean> {
     this.logger.info(`Restarting component: ${component}`);
-    
+
     try {
       switch (component) {
         case 'connection':
           await this.connectionManager.shutdown();
           await this.connectionManager.initialize();
           return true;
-        
+
         case 'database':
           // In a real implementation, you would restart the database connection
           this.logger.debug('Database restart requested (placeholder)');
           return true;
-        
+
         default:
           this.logger.warning(`Unknown component for restart: ${component}`);
           return false;
@@ -344,7 +354,7 @@ export class ErrorRecoveryWorkflowCoordinator {
 
   private async performFailover(errorEvent: ErrorEvent): Promise<boolean> {
     this.logger.info(`Performing failover for: ${errorEvent.context}`);
-    
+
     // In a real implementation, this would switch to backup systems
     // For now, this is a placeholder
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -353,72 +363,73 @@ export class ErrorRecoveryWorkflowCoordinator {
 
   private async performShutdown(errorEvent: ErrorEvent): Promise<void> {
     this.logger.error(`Performing emergency shutdown due to: ${errorEvent.context}`);
-    
+
     // Emit shutdown event
     this.eventManager.emit('emergencyShutdown', {
       reason: errorEvent.context,
       error: errorEvent.error.message,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
-    
+
     // In a real implementation, this would initiate graceful shutdown
   }
 
   private shouldTriggerCircuitBreaker(errorEvent: ErrorEvent): boolean {
     const category = errorEvent.category.category;
-    const recentErrors = Array.from(this.workflowState.activeErrors.values())
-      .filter(e => e.category.category === category && 
-                   Date.now() - e.timestamp < 300000); // 5 minutes
-    
+    const recentErrors = Array.from(this.workflowState.activeErrors.values()).filter(
+      e => e.category.category === category && Date.now() - e.timestamp < 300000,
+    ); // 5 minutes
+
     // Trigger circuit breaker if too many errors of the same category
     return recentErrors.length >= 5;
   }
 
   private async triggerCircuitBreaker(category: string): Promise<void> {
     this.logger.error(`Circuit breaker triggered for category: ${category}`);
-    
+
     this.workflowState.circuitBreakers.set(category, true);
-    
+
     // Emit circuit breaker event
     this.eventManager.emit('circuitBreakerTriggered', {
       category,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
-    
+
     // Auto-reset circuit breaker after 10 minutes
     setTimeout(() => {
       this.workflowState.circuitBreakers.set(category, false);
       this.logger.info(`Circuit breaker reset for category: ${category}`);
-      
+
       this.eventManager.emit('circuitBreakerReset', {
         category,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
     }, 600000); // 10 minutes
   }
 
   private async handleCriticalError(errorEvent: ErrorEvent): Promise<void> {
     this.logger.error(`Critical error detected: ${errorEvent.error.message}`);
-    
+
     // Emit critical error event
     this.eventManager.emit('criticalError', {
       errorId: errorEvent.id,
       context: errorEvent.context,
       error: errorEvent.error.message,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
-    
+
     // For critical errors, consider emergency shutdown
-    if (errorEvent.category.category === 'SYSTEM' || 
-        errorEvent.category.category === 'CONNECTION') {
+    if (
+      errorEvent.category.category === 'SYSTEM' ||
+      errorEvent.category.category === 'CONNECTION'
+    ) {
       await this.performShutdown(errorEvent);
     }
   }
 
   private getMaxRecoveryAttempts(category: string): number {
     const strategies = this.recoveryStrategies.get(category) || [];
-    return strategies.reduce((max, strategy) => 
-      Math.max(max, strategy.maxAttempts || 3), 3);
+    return strategies.reduce((max, strategy) => Math.max(max, strategy.maxAttempts || 3), 3);
   }
 
   public getWorkflowState(): ErrorRecoveryWorkflowState {
@@ -426,7 +437,7 @@ export class ErrorRecoveryWorkflowCoordinator {
       activeErrors: new Map(this.workflowState.activeErrors),
       recoveryInProgress: this.workflowState.recoveryInProgress,
       lastRecoveryAttempt: this.workflowState.lastRecoveryAttempt,
-      circuitBreakers: new Map(this.workflowState.circuitBreakers)
+      circuitBreakers: new Map(this.workflowState.circuitBreakers),
     };
   }
 
@@ -454,7 +465,7 @@ export class ErrorRecoveryWorkflowCoordinator {
       successThreshold: 3,
       timeout: 30000, // 30 seconds
       monitoringPeriod: 60000, // 1 minute
-      name: 'ConnectionManager'
+      name: 'ConnectionManager',
     });
 
     // Database circuit breaker
@@ -463,7 +474,7 @@ export class ErrorRecoveryWorkflowCoordinator {
       successThreshold: 2,
       timeout: 10000, // 10 seconds
       monitoringPeriod: 30000, // 30 seconds
-      name: 'DatabaseManager'
+      name: 'DatabaseManager',
     });
 
     // Trading circuit breaker
@@ -472,7 +483,7 @@ export class ErrorRecoveryWorkflowCoordinator {
       successThreshold: 1,
       timeout: 60000, // 1 minute
       monitoringPeriod: 300000, // 5 minutes
-      name: 'TradeExecutor'
+      name: 'TradeExecutor',
     });
 
     // Blockchain watcher circuit breaker
@@ -481,7 +492,7 @@ export class ErrorRecoveryWorkflowCoordinator {
       successThreshold: 3,
       timeout: 20000, // 20 seconds
       monitoringPeriod: 60000, // 1 minute
-      name: 'BlockchainWatcher'
+      name: 'BlockchainWatcher',
     });
 
     this.logger.info('Circuit breakers setup completed');
@@ -507,7 +518,7 @@ export class ErrorRecoveryWorkflowCoordinator {
     } else if (context.includes('TUI') || context.includes('UI')) {
       return 'TuiController';
     }
-    
+
     return 'SystemComponent';
   }
 
@@ -545,7 +556,7 @@ export class ErrorRecoveryWorkflowCoordinator {
       legacyStats: this.getWorkflowState(),
       errorHandlerStats: this.errorHandler.getErrorMetrics(),
       circuitBreakerStats: this.circuitBreakerRegistry.getAllStats(),
-      notificationStats: this.notificationSystem.getStats()
+      notificationStats: this.notificationSystem.getStats(),
     };
   }
 }

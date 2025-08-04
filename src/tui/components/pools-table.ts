@@ -30,10 +30,14 @@ export class PoolsTable extends BaseComponent {
     theme: TuiTheme,
     config: ComponentConfig = {},
   ) {
-    super(theme, {
-      title: 'Detected Liquidity Pools',
-      ...config,
-    }, 'PoolsTable');
+    super(
+      theme,
+      {
+        title: 'Detected Liquidity Pools',
+        ...config,
+      },
+      'PoolsTable',
+    );
 
     this.createTableElement();
     this.setupTableEventHandlers();
@@ -41,13 +45,13 @@ export class PoolsTable extends BaseComponent {
 
   protected createElement(): void {
     super.createElement();
-    
+
     // Create container for the table
     this.element.style = {
       ...this.element.style,
       transparent: true,
     };
-    
+
     // Don't set border on main element since table will have its own
   }
 
@@ -151,14 +155,14 @@ export class PoolsTable extends BaseComponent {
 
   private getColumnKey(header: string): string {
     const columnMap: Record<string, string> = {
-      'Time': 'age',
-      'DEX': 'dex',
+      Time: 'age',
+      DEX: 'dex',
       'Token A': 'tokenA',
       'Token B': 'tokenB',
       'Initial Liq.': 'initialLiquidity',
       'Current Liq.': 'currentLiquidity',
-      'Change': 'liquidityChange',
-      'Status': 'status',
+      Change: 'liquidityChange',
+      Status: 'status',
     };
     return columnMap[header] || header.toLowerCase();
   }
@@ -166,7 +170,7 @@ export class PoolsTable extends BaseComponent {
   private cycleSortColumn(): void {
     const columns = ['age', 'dex', 'initialLiquidity', 'currentLiquidity', 'liquidityChange'];
     const currentIndex = columns.indexOf(this.sortColumn);
-    
+
     if (this.sortDirection === 'desc') {
       this.sortDirection = 'asc';
     } else {
@@ -253,7 +257,7 @@ export class PoolsTable extends BaseComponent {
 
   private updateTableData(): void {
     const filteredPools = this.filterPools();
-    
+
     const tableData = filteredPools.map(pool => [
       pool.age,
       pool.dex,
@@ -295,11 +299,12 @@ export class PoolsTable extends BaseComponent {
     }
 
     const filterLower = this.filterText.toLowerCase();
-    return this.pools.filter(pool => 
-      pool.dex.toLowerCase().includes(filterLower) ||
-      pool.tokenASymbol?.toLowerCase().includes(filterLower) ||
-      pool.tokenBSymbol?.toLowerCase().includes(filterLower) ||
-      pool.address.toLowerCase().includes(filterLower)
+    return this.pools.filter(
+      pool =>
+        pool.dex.toLowerCase().includes(filterLower) ||
+        pool.tokenASymbol?.toLowerCase().includes(filterLower) ||
+        pool.tokenBSymbol?.toLowerCase().includes(filterLower) ||
+        pool.address.toLowerCase().includes(filterLower),
     );
   }
 
@@ -417,19 +422,21 @@ Press any key to close...
     try {
       // Fetch pools from database
       const pools = await this.dbManager.getLiquidityPools();
-      
+
       // Get token information for better display
       const poolsWithTokenInfo = await Promise.all(
-        pools.map(async (pool) => {
+        pools.map(async pool => {
           const [tokenA, tokenB] = await Promise.all([
             this.dbManager.getToken(pool.tokenA),
             this.dbManager.getToken(pool.tokenB),
           ]);
 
           const age = this.formatDuration(pool.createdAt);
-          const liquidityChange = pool.initialLiquidityUsd > 0 
-            ? ((pool.currentLiquidityUsd - pool.initialLiquidityUsd) / pool.initialLiquidityUsd) * 100
-            : 0;
+          const liquidityChange =
+            pool.initialLiquidityUsd > 0
+              ? ((pool.currentLiquidityUsd - pool.initialLiquidityUsd) / pool.initialLiquidityUsd) *
+                100
+              : 0;
 
           let status = 'Active';
           if (pool.currentLiquidityUsd < pool.initialLiquidityUsd * 0.5) {
@@ -451,15 +458,14 @@ Press any key to close...
             status,
             liquidityChange,
           };
-        })
+        }),
       );
 
       this.pools = poolsWithTokenInfo;
       this.sortAndUpdateTable();
-      
+
       // Update title with count
       this.setTitle(`Detected Liquidity Pools (${this.pools.length})`);
-      
     } catch (error) {
       this.handleError(error, 'Failed to refresh pools table');
     }

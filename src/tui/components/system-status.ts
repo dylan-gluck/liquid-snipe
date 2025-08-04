@@ -36,16 +36,20 @@ export class SystemStatus extends BaseComponent {
     theme: TuiTheme,
     config: ComponentConfig = {},
   ) {
-    super(theme, {
-      title: 'System Status',
-      top: '50%',
-      left: 0,
-      width: '100%',
-      height: '50%',
-      border: true,
-      scrollable: true,
-      ...config,
-    }, 'SystemStatus');
+    super(
+      theme,
+      {
+        title: 'System Status',
+        top: '50%',
+        left: 0,
+        width: '100%',
+        height: '50%',
+        border: true,
+        scrollable: true,
+        ...config,
+      },
+      'SystemStatus',
+    );
 
     this.setupEventListeners();
   }
@@ -70,7 +74,7 @@ export class SystemStatus extends BaseComponent {
   private updateSystemStatus(event: SystemStatusEvent): void {
     this.systemInfo.status = event.status;
     this.systemInfo.lastUpdate = event.timestamp;
-    
+
     // Update memory and CPU if available in details
     if (event.details) {
       if (event.details.memoryUsage) {
@@ -80,13 +84,13 @@ export class SystemStatus extends BaseComponent {
         this.systemInfo.cpuUsage = event.details.cpuUsage;
       }
     }
-    
+
     this.updateDisplay();
   }
 
   private updateConnectionStatus(event: ConnectionStatusEvent): void {
     const existingIndex = this.systemInfo.connections.findIndex(
-      conn => conn.type === event.type && conn.endpoint === event.endpoint
+      conn => conn.type === event.type && conn.endpoint === event.endpoint,
     );
 
     const connectionInfo: ConnectionInfo = {
@@ -117,11 +121,11 @@ export class SystemStatus extends BaseComponent {
 
     let content = `{bold}System Status{/bold}\n`;
     content += `${'-'.repeat(20)}\n`;
-    
+
     // System status
     content += `Status:         ${this.colorizeStatus(status)}\n`;
     content += `Uptime:         ${this.formatDuration(uptime)}\n`;
-    
+
     // Performance metrics
     if (memoryUsage > 0) {
       content += `Memory:         ${this.formatMemoryUsage(memoryUsage)}\n`;
@@ -129,13 +133,13 @@ export class SystemStatus extends BaseComponent {
     if (cpuUsage > 0) {
       content += `CPU:            ${this.formatCpuUsage(cpuUsage)}\n`;
     }
-    
+
     content += `Last Update:    ${this.formatTime(lastUpdate)}\n\n`;
 
     // Connection status
     content += `{bold}Connections{/bold}\n`;
     content += `${'-'.repeat(20)}\n`;
-    
+
     if (connections.length === 0) {
       content += `{${this.theme.secondary}-fg}No connections{/}\n`;
     } else {
@@ -149,31 +153,34 @@ export class SystemStatus extends BaseComponent {
 
   private formatConnectionLine(conn: ConnectionInfo): string {
     let line = `${conn.type.padEnd(10)} `;
-    
+
     // Status with color
     line += `${this.colorizeStatus(conn.status).padEnd(15)} `;
-    
+
     // Latency if available
     if (conn.latency !== undefined) {
-      const latencyColor = conn.latency > 1000 ? this.theme.error :
-                          conn.latency > 500 ? this.theme.warning :
-                          this.theme.success;
+      const latencyColor =
+        conn.latency > 1000
+          ? this.theme.error
+          : conn.latency > 500
+            ? this.theme.warning
+            : this.theme.success;
       line += `{${latencyColor}-fg}${conn.latency}ms{/}`;
     }
-    
+
     line += '\n';
-    
+
     // Error information if present
     if (conn.error && conn.status === 'ERROR') {
       line += `${' '.repeat(11)}{${this.theme.error}-fg}${conn.error}{/}\n`;
     }
-    
+
     // Endpoint information if available
     if (conn.endpoint && conn.type !== 'DATABASE') {
       const shortEndpoint = this.shortenEndpoint(conn.endpoint);
       line += `${' '.repeat(11)}{${this.theme.secondary}-fg}${shortEndpoint}{/}\n`;
     }
-    
+
     return line;
   }
 
@@ -181,7 +188,7 @@ export class SystemStatus extends BaseComponent {
     if (endpoint.length <= 30) {
       return endpoint;
     }
-    
+
     // Try to extract meaningful parts
     if (endpoint.startsWith('https://')) {
       const parts = endpoint.replace('https://', '').split('/');
@@ -190,24 +197,21 @@ export class SystemStatus extends BaseComponent {
       const parts = endpoint.replace('wss://', '').split('/');
       return `wss://${parts[0]}/...`;
     }
-    
+
     return `${endpoint.substring(0, 27)}...`;
   }
 
   private formatMemoryUsage(bytes: number): string {
     const mb = bytes / (1024 * 1024);
-    const color = mb > 500 ? this.theme.error :
-                  mb > 200 ? this.theme.warning :
-                  this.theme.success;
-    
+    const color = mb > 500 ? this.theme.error : mb > 200 ? this.theme.warning : this.theme.success;
+
     return `{${color}-fg}${mb.toFixed(1)} MB{/}`;
   }
 
   private formatCpuUsage(percent: number): string {
-    const color = percent > 80 ? this.theme.error :
-                  percent > 50 ? this.theme.warning :
-                  this.theme.success;
-    
+    const color =
+      percent > 80 ? this.theme.error : percent > 50 ? this.theme.warning : this.theme.success;
+
     return `{${color}-fg}${percent.toFixed(1)}%{/}`;
   }
 
@@ -221,19 +225,19 @@ export class SystemStatus extends BaseComponent {
     // Get Node.js process memory usage
     const memUsage = process.memoryUsage();
     this.systemInfo.memoryUsage = memUsage.heapUsed;
-    
+
     // CPU usage would require more complex calculation
     // For now, we'll use a mock value or skip it
     // this.systemInfo.cpuUsage = getCpuUsage(); // Not implemented
-    
+
     this.systemInfo.lastUpdate = Date.now();
   }
 
   public getStatusSummary(): { status: string; connections: number; uptime: string } {
     const connectedCount = this.systemInfo.connections.filter(
-      conn => conn.status === 'CONNECTED'
+      conn => conn.status === 'CONNECTED',
     ).length;
-    
+
     return {
       status: this.systemInfo.status,
       connections: connectedCount,
@@ -247,10 +251,10 @@ export class SystemStatus extends BaseComponent {
 
   public isSystemHealthy(): boolean {
     const systemOk = ['READY', 'PAUSED'].includes(this.systemInfo.status);
-    const connectionsOk = this.systemInfo.connections.every(
-      conn => ['CONNECTED', 'RECONNECTING'].includes(conn.status)
+    const connectionsOk = this.systemInfo.connections.every(conn =>
+      ['CONNECTED', 'RECONNECTING'].includes(conn.status),
     );
-    
+
     return systemOk && connectionsOk;
   }
 
@@ -262,7 +266,7 @@ export class SystemStatus extends BaseComponent {
     status: string;
   } {
     const activeConnections = this.systemInfo.connections.filter(
-      conn => conn.status === 'CONNECTED'
+      conn => conn.status === 'CONNECTED',
     ).length;
 
     return {
@@ -280,7 +284,7 @@ export class SystemStatus extends BaseComponent {
     status: 'CONNECTED' | 'DISCONNECTED' | 'RECONNECTING' | 'ERROR',
     endpoint?: string,
     latency?: number,
-    error?: string
+    error?: string,
   ): void {
     const event: ConnectionStatusEvent = {
       type,
@@ -290,21 +294,21 @@ export class SystemStatus extends BaseComponent {
       timestamp: Date.now(),
       error,
     };
-    
+
     this.updateConnectionStatus(event);
   }
 
   // Method to simulate system status events for testing
   public simulateSystemEvent(
     status: 'STARTING' | 'READY' | 'PAUSED' | 'ERROR' | 'SHUTDOWN',
-    details?: Record<string, any>
+    details?: Record<string, any>,
   ): void {
     const event: SystemStatusEvent = {
       status,
       timestamp: Date.now(),
       details,
     };
-    
+
     this.updateSystemStatus(event);
   }
 

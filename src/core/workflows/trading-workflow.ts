@@ -4,7 +4,10 @@ import { NewPoolEvent, TradeDecision, TradeResult } from '../../types';
 import { StrategyEngine } from '../../trading/strategy-engine';
 import { TradeExecutor } from '../../trading/trade-executor';
 import DatabaseManager from '../../db';
-import { TradingStateMachine, TradingStateTransition } from '../state-machines/trading-state-machine';
+import {
+  TradingStateMachine,
+  TradingStateTransition,
+} from '../state-machines/trading-state-machine';
 
 export interface TradingWorkflowState {
   poolEvaluation: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
@@ -22,7 +25,7 @@ export class TradingWorkflowCoordinator {
     private strategyEngine: StrategyEngine,
     private tradeExecutor: TradeExecutor,
     private dbManager: DatabaseManager,
-    private isDryRun: boolean = false
+    private isDryRun: boolean = false,
   ) {
     this.logger = new Logger('TradingWorkflow');
     this.setupEventHandlers();
@@ -36,7 +39,7 @@ export class TradingWorkflowCoordinator {
 
     // Handle trade decisions
     this.eventManager.on('tradeDecision', async (decision: TradeDecision) => {
-      await this.handleTradeDecisionWorkflow(decision);  
+      await this.handleTradeDecisionWorkflow(decision);
     });
 
     // Handle trade results
@@ -47,36 +50,36 @@ export class TradingWorkflowCoordinator {
 
   private async handleNewPoolWorkflow(poolEvent: NewPoolEvent): Promise<void> {
     const workflowId = `pool_${poolEvent.signature}`;
-    
+
     this.logger.info(`Starting trading workflow for pool: ${poolEvent.poolAddress}`);
 
     // Initialize state machine
     const stateMachine = new TradingStateMachine();
     stateMachine.transition(TradingStateTransition.POOL_DETECTED, {
       poolAddress: poolEvent.poolAddress,
-      tokenAddress: poolEvent.tokenA // Assume tokenA is the new token
+      tokenAddress: poolEvent.tokenA, // Assume tokenA is the new token
     });
     this.activeStateMachines.set(workflowId, stateMachine);
 
     // Initialize workflow state
     this.activeWorkflows.set(workflowId, {
       poolEvaluation: 'PENDING',
-      tradeDecision: 'PENDING', 
-      tradeExecution: 'PENDING'
+      tradeDecision: 'PENDING',
+      tradeExecution: 'PENDING',
     });
 
     try {
       // Step 1: Pool evaluation
       this.updateWorkflowState(workflowId, { poolEvaluation: 'IN_PROGRESS' });
       stateMachine.transition(TradingStateTransition.EVALUATION_COMPLETED);
-      
+
       const decision = await this.strategyEngine.evaluatePool(poolEvent);
-      
+
       this.updateWorkflowState(workflowId, { poolEvaluation: 'COMPLETED' });
-      
+
       if (decision) {
         stateMachine.transition(TradingStateTransition.EVALUATION_COMPLETED, {
-          tradeAmount: decision.tradeAmountUsd
+          tradeAmount: decision.tradeAmountUsd,
         });
       } else {
         stateMachine.transition(TradingStateTransition.EVALUATION_COMPLETED);
@@ -89,10 +92,11 @@ export class TradingWorkflowCoordinator {
         this.updateWorkflowState(workflowId, { tradeDecision: 'COMPLETED' });
       } else {
         this.updateWorkflowState(workflowId, { tradeDecision: 'SKIPPED' });
-        this.logger.info(`Pool ${poolEvent.poolAddress} evaluation completed - no trade recommended`);
+        this.logger.info(
+          `Pool ${poolEvent.poolAddress} evaluation completed - no trade recommended`,
+        );
         this.cleanupWorkflow(workflowId);
       }
-
     } catch (error) {
       this.logger.error(`Pool evaluation workflow failed: ${(error as Error).message}`);
       this.updateWorkflowState(workflowId, { poolEvaluation: 'FAILED' });
@@ -102,7 +106,7 @@ export class TradingWorkflowCoordinator {
 
   private async handleTradeDecisionWorkflow(decision: TradeDecision): Promise<void> {
     const workflowId = this.findWorkflowByToken(decision.targetToken);
-    
+
     if (!workflowId) {
       this.logger.warning(`No active workflow found for token: ${decision.targetToken}`);
       return;
@@ -114,8 +118,10 @@ export class TradingWorkflowCoordinator {
         this.updateWorkflowState(workflowId, { tradeExecution: 'IN_PROGRESS' });
 
         if (this.isDryRun) {
-          this.logger.info(`[DRY RUN] Would execute trade: ${decision.tradeAmountUsd} USD for ${decision.targetToken}`);
-          
+          this.logger.info(
+            `[DRY RUN] Would execute trade: ${decision.tradeAmountUsd} USD for ${decision.targetToken}`,
+          );
+
           // Emit mock result for dry run
           this.eventManager.emit('tradeResult', {
             success: true,
@@ -133,11 +139,10 @@ export class TradingWorkflowCoordinator {
         this.updateWorkflowState(workflowId, { tradeExecution: 'SKIPPED' });
         this.cleanupWorkflow(workflowId);
       }
-
     } catch (error) {
       this.logger.error(`Trade execution workflow failed: ${(error as Error).message}`);
       this.updateWorkflowState(workflowId, { tradeExecution: 'FAILED' });
-      
+
       // Emit failed result
       this.eventManager.emit('tradeResult', {
         success: false,
@@ -149,7 +154,7 @@ export class TradingWorkflowCoordinator {
 
   private async handleTradeResultWorkflow(result: TradeResult): Promise<void> {
     const workflowId = this.findWorkflowByTradeId(result.tradeId);
-    
+
     if (!workflowId) {
       this.logger.debug('Trade result received but no active workflow found');
       return;
@@ -159,7 +164,7 @@ export class TradingWorkflowCoordinator {
       if (result.success) {
         this.logger.info(`Trading workflow completed successfully: ${result.signature}`);
         this.updateWorkflowState(workflowId, { tradeExecution: 'COMPLETED' });
-        
+
         if (result.positionId) {
           this.logger.info(`Position created: ${result.positionId}`);
         }
@@ -170,7 +175,6 @@ export class TradingWorkflowCoordinator {
 
       // Cleanup completed workflow
       this.cleanupWorkflow(workflowId);
-
     } catch (error) {
       this.logger.error(`Error handling trade result: ${(error as Error).message}`);
       this.cleanupWorkflow(workflowId);
@@ -186,7 +190,7 @@ export class TradingWorkflowCoordinator {
   }
 
   private findWorkflowByToken(tokenAddress: string): string | null {
-    // This is a simplified implementation - in practice, you'd maintain 
+    // This is a simplified implementation - in practice, you'd maintain
     // a more sophisticated mapping between tokens and workflow IDs
     for (const [workflowId] of this.activeWorkflows) {
       if (workflowId.includes('pool_')) {
@@ -201,7 +205,7 @@ export class TradingWorkflowCoordinator {
       // For dry run or missing trade ID, return the first active workflow
       return this.activeWorkflows.keys().next().value || null;
     }
-    
+
     // In a real implementation, you'd have a proper mapping
     return this.activeWorkflows.keys().next().value || null;
   }

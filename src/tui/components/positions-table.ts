@@ -32,10 +32,14 @@ export class PositionsTable extends BaseComponent {
     theme: TuiTheme,
     config: ComponentConfig = {},
   ) {
-    super(theme, {
-      title: 'Trading Positions',
-      ...config,
-    }, 'PositionsTable');
+    super(
+      theme,
+      {
+        title: 'Trading Positions',
+        ...config,
+      },
+      'PositionsTable',
+    );
 
     this.createTableElement();
     this.setupTableEventHandlers();
@@ -43,12 +47,12 @@ export class PositionsTable extends BaseComponent {
 
   protected createElement(): void {
     super.createElement();
-    
+
     this.element.style = {
       ...this.element.style,
       transparent: true,
     };
-    
+
     // Don't set border on main element since table will have its own
   }
 
@@ -130,26 +134,9 @@ export class PositionsTable extends BaseComponent {
   }
 
   private updateTableHeaders(): void {
-    const headers = this.showClosedPositions ? [
-      'Token',
-      'Entry',
-      'Exit',
-      'Amount',
-      'P&L $',
-      'P&L %',
-      'Duration',
-      'Strategy',
-    ] : [
-      'Token',
-      'Entry',
-      'Current',
-      'Amount',
-      'Value',
-      'P&L $',
-      'P&L %',
-      'Time',
-      'Strategy',
-    ];
+    const headers = this.showClosedPositions
+      ? ['Token', 'Entry', 'Exit', 'Amount', 'P&L $', 'P&L %', 'Duration', 'Strategy']
+      : ['Token', 'Entry', 'Current', 'Amount', 'Value', 'P&L $', 'P&L %', 'Time', 'Strategy'];
 
     const sortedHeaders = headers.map(header => {
       const columnKey = this.getColumnKey(header);
@@ -165,28 +152,28 @@ export class PositionsTable extends BaseComponent {
 
   private getColumnKey(header: string): string {
     const columnMap: Record<string, string> = {
-      'Token': 'tokenSymbol',
-      'Entry': 'entryPrice',
-      'Current': 'currentPrice',
-      'Exit': 'currentPrice',
-      'Amount': 'amount',
-      'Value': 'valueUsd',
+      Token: 'tokenSymbol',
+      Entry: 'entryPrice',
+      Current: 'currentPrice',
+      Exit: 'currentPrice',
+      Amount: 'amount',
+      Value: 'valueUsd',
       'P&L $': 'pnlUsd',
       'P&L %': 'pnlPercent',
-      'Time': 'timeHeld',
-      'Duration': 'timeHeld',
-      'Strategy': 'exitStrategy',
+      Time: 'timeHeld',
+      Duration: 'timeHeld',
+      Strategy: 'exitStrategy',
     };
     return columnMap[header] || header.toLowerCase();
   }
 
   private cycleSortColumn(): void {
-    const columns = this.showClosedPositions 
+    const columns = this.showClosedPositions
       ? ['timeHeld', 'pnlPercent', 'pnlUsd', 'tokenSymbol', 'exitStrategy']
       : ['timeHeld', 'pnlPercent', 'pnlUsd', 'valueUsd', 'tokenSymbol'];
-    
+
     const currentIndex = columns.indexOf(this.sortColumn);
-    
+
     if (this.sortDirection === 'desc') {
       this.sortDirection = 'asc';
     } else {
@@ -310,26 +297,9 @@ export class PositionsTable extends BaseComponent {
       }
     });
 
-    const headers = this.showClosedPositions ? [
-      'Token',
-      'Entry',
-      'Exit',
-      'Amount',
-      'P&L $',
-      'P&L %',
-      'Duration',
-      'Strategy',
-    ] : [
-      'Token',
-      'Entry',
-      'Current',
-      'Amount',
-      'Value',
-      'P&L $',
-      'P&L %',
-      'Time',
-      'Strategy',
-    ];
+    const headers = this.showClosedPositions
+      ? ['Token', 'Entry', 'Exit', 'Amount', 'P&L $', 'P&L %', 'Duration', 'Strategy']
+      : ['Token', 'Entry', 'Current', 'Amount', 'Value', 'P&L $', 'P&L %', 'Time', 'Strategy'];
 
     const sortedHeaders = headers.map(header => {
       const columnKey = this.getColumnKey(header);
@@ -527,8 +497,12 @@ Press 'y' to confirm, any other key to cancel
   }
 
   private showMessage(message: string, type: 'info' | 'warning' | 'error' = 'info'): void {
-    const color = type === 'error' ? this.theme.error : 
-                  type === 'warning' ? this.theme.warning : this.theme.info;
+    const color =
+      type === 'error'
+        ? this.theme.error
+        : type === 'warning'
+          ? this.theme.warning
+          : this.theme.info;
 
     const messageBox = blessed.message({
       parent: this.element.screen,
@@ -562,24 +536,21 @@ Press 'y' to confirm, any other key to cancel
 
   public async refresh(): Promise<void> {
     try {
-      const positions = this.showClosedPositions 
+      const positions = this.showClosedPositions
         ? await this.dbManager.getClosedPositions()
         : await this.dbManager.getOpenPositions();
 
       const positionsWithDisplayData = await Promise.all(
-        positions.map(async (position) => {
+        positions.map(async position => {
           const token = await this.dbManager.getToken(position.tokenAddress);
-          
+
           // Calculate current values (mock implementation)
           const currentPrice = position.entryPrice * (1 + (Math.random() - 0.5) * 0.4); // ±20% random for demo
           const valueUsd = position.amount * currentPrice;
-          const pnlUsd = valueUsd - (position.amount * position.entryPrice);
+          const pnlUsd = valueUsd - position.amount * position.entryPrice;
           const pnlPercent = ((currentPrice - position.entryPrice) / position.entryPrice) * 100;
-          
-          const timeHeld = this.formatDuration(
-            position.openTimestamp, 
-            position.closeTimestamp
-          );
+
+          const timeHeld = this.formatDuration(position.openTimestamp, position.closeTimestamp);
 
           const exitStrategy = this.formatExitStrategyName(position.exitStrategy);
           const exitTrigger = this.getExitTrigger(position.exitStrategy);
@@ -599,13 +570,12 @@ Press 'y' to confirm, any other key to cancel
             exitStrategy,
             exitTrigger,
           };
-        })
+        }),
       );
 
       this.positions = positionsWithDisplayData;
       this.sortAndUpdateTable();
       this.updateTitle();
-
     } catch (error) {
       this.handleError(error, 'Failed to refresh positions table');
     }

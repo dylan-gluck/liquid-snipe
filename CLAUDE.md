@@ -1,128 +1,272 @@
-# CLAUDE.md
+# Claude Code Configuration - SPARC Development Environment
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## 🚨 CRITICAL: CONCURRENT EXECUTION & FILE MANAGEMENT
 
-## Common Development Commands
+**ABSOLUTE RULES**:
+1. ALL operations MUST be concurrent/parallel in a single message
+2. **NEVER save working files, text/mds and tests to the root folder**
+3. ALWAYS organize files in appropriate subdirectories
 
-### Development and Testing
-- `pnpm dev` - Run in development mode with hot reloading (uses ts-node)
-- `pnpm test` - Run all tests with Jest
-- `pnpm test:watch` - Run tests in watch mode
-- `pnpm test -- -t "ConfigManager"` - Run specific tests by name pattern
+### ⚡ GOLDEN RULE: "1 MESSAGE = ALL RELATED OPERATIONS"
 
-### Build and Quality
-- `pnpm build` - Compile TypeScript to JavaScript in `dist/` directory
-- `pnpm typecheck` - Run TypeScript type checking without emitting files
-- `pnpm lint` - Run ESLint on all TypeScript files in src/
-- `pnpm lint:fix` - Run ESLint with auto-fix enabled
-- `pnpm format` - Format code with Prettier
+**MANDATORY PATTERNS:**
+- **TodoWrite**: ALWAYS batch ALL todos in ONE call (5-10+ todos minimum)
+- **Task tool**: ALWAYS spawn ALL agents in ONE message with full instructions
+- **File operations**: ALWAYS batch ALL reads/writes/edits in ONE message
+- **Bash commands**: ALWAYS batch ALL terminal operations in ONE message
+- **Memory operations**: ALWAYS batch ALL memory store/retrieve in ONE message
 
-### Application Commands
-- `pnpm start` - Run the compiled application
-- `pnpm start -- --help` - Show all CLI options
-- `pnpm start -- --dry-run` - Run in monitor-only mode (no trading)
-- `pnpm start -- --config config.yaml` - Use custom configuration file
-- `pnpm start -- export-config config.yaml` - Export current config to file
-- `pnpm start -- validate-config config.yaml` - Validate a configuration file
+### 📁 File Organization Rules
 
-## Architecture Overview
+**NEVER save to root folder. Use these directories:**
+- `/src` - Source code files
+- `/tests` - Test files
+- `/docs` - Documentation and markdown files
+- `/config` - Configuration files
+- `/scripts` - Utility scripts
+- `/examples` - Example code
 
-This is a Solana trading bot that monitors DEXes for new liquidity pools and executes automated trades. The application is built with a modular event-driven architecture.
+## Project Overview
 
-### Core Components
+This project uses SPARC (Specification, Pseudocode, Architecture, Refinement, Completion) methodology with Claude-Flow orchestration for systematic Test-Driven Development.
 
-**Application Entry Point (`src/index.ts`)**
-- CLI interface built with Commander.js
-- Extensive command-line options for configuration overrides
-- Configuration validation and loading
-- Application lifecycle management
+## SPARC Commands
 
-**Core Controller (`src/core/controller.ts`)**
-- Central orchestrator for the entire application
-- Manages initialization sequence and graceful shutdown
-- Coordinates between different subsystems
-- Handles process signals and error recovery
+### Core Commands
+- `npx claude-flow sparc modes` - List available modes
+- `npx claude-flow sparc run <mode> "<task>"` - Execute specific mode
+- `npx claude-flow sparc tdd "<feature>"` - Run complete TDD workflow
+- `npx claude-flow sparc info <mode>` - Get mode details
 
-**Configuration System (`src/config/`)**
-- Flexible config loading from YAML, JSON, environment variables, and CLI args
-- Deep merge functionality for configuration overrides
-- Comprehensive validation with detailed error messages
-- Support for DEX enable/disable and exit strategy management
+### Batchtools Commands
+- `npx claude-flow sparc batch <modes> "<task>"` - Parallel execution
+- `npx claude-flow sparc pipeline "<task>"` - Full pipeline processing
+- `npx claude-flow sparc concurrent <mode> "<tasks-file>"` - Multi-task processing
 
-**Event System (`src/events/`)**
-- Centralized event management with typed events
-- Event persistence to database with configurable filtering
-- Statistics tracking and error handling
-- Support for sync/async event handlers
+### Build Commands
+- `npm run build` - Build project
+- `npm run test` - Run tests
+- `npm run lint` - Linting
+- `npm run typecheck` - Type checking
 
-**Database Layer (`src/db/`)**
-- SQLite-based data persistence
-- Models for tokens, pools, trades, positions, and logs
-- Automatic database initialization and migration
-- Event logging with configurable retention
+## SPARC Workflow Phases
 
-### Key Data Types
+1. **Specification** - Requirements analysis (`sparc run spec-pseudocode`)
+2. **Pseudocode** - Algorithm design (`sparc run spec-pseudocode`)
+3. **Architecture** - System design (`sparc run architect`)
+4. **Refinement** - TDD implementation (`sparc tdd`)
+5. **Completion** - Integration (`sparc run integration`)
 
-The application uses comprehensive TypeScript types defined in `src/types/index.ts`:
+## Code Style & Best Practices
 
-- **Configuration Types**: `AppConfig`, `DexConfig`, `WalletConfig`, `TradeConfig`, `ExitStrategyConfig`
-- **Event Types**: `NewPoolEvent`, `TradeDecision`, `TradeResult`
-- **Database Entities**: `Token`, `LiquidityPool`, `Trade`, `Position`, `LogEvent`
+- **Modular Design**: Files under 500 lines
+- **Environment Safety**: Never hardcode secrets
+- **Test-First**: Write tests before implementation
+- **Clean Architecture**: Separate concerns
+- **Documentation**: Keep updated
 
-### Configuration Management
+## 🚀 Available Agents (54 Total)
 
-Configuration follows a hierarchical merge pattern:
-1. Default configuration (`src/config/default.ts`)
-2. File-based config (YAML/JSON)
-3. Environment variables (prefixed with `LIQUID_SNIPE_`)
-4. Command-line arguments
+### Core Development
+`coder`, `reviewer`, `tester`, `planner`, `researcher`
 
-The ConfigManager provides methods for DEX management, exit strategy selection, and runtime configuration validation.
+### Swarm Coordination
+`hierarchical-coordinator`, `mesh-coordinator`, `adaptive-coordinator`, `collective-intelligence-coordinator`, `swarm-memory-manager`
 
-### Event-Driven Architecture
+### Consensus & Distributed
+`byzantine-coordinator`, `raft-manager`, `gossip-coordinator`, `consensus-builder`, `crdt-synchronizer`, `quorum-manager`, `security-manager`
 
-The application uses a centralized EventManager that:
-- Provides type-safe event subscription and emission
-- Automatically persists events to database (configurable)
-- Tracks statistics and handles errors gracefully
-- Supports both one-time and persistent subscriptions
+### Performance & Optimization
+`perf-analyzer`, `performance-benchmarker`, `task-orchestrator`, `memory-coordinator`, `smart-agent`
 
-Events flow through the system to coordinate between monitoring, decision-making, trading, and position management components.
+### GitHub & Repository
+`github-modes`, `pr-manager`, `code-review-swarm`, `issue-tracker`, `release-manager`, `workflow-automation`, `project-board-sync`, `repo-architect`, `multi-repo-swarm`
 
-### Database Schema
+### SPARC Methodology
+`sparc-coord`, `sparc-coder`, `specification`, `pseudocode`, `architecture`, `refinement`
 
-Uses SQLite with models for:
-- `tokens` - Token metadata and verification status
-- `liquidity_pools` - DEX pool information and liquidity tracking
-- `trades` - Individual buy/sell transactions
-- `positions` - Open/closed trading positions with P&L
-- `log_events` - Application logs and event history
+### Specialized Development
+`backend-dev`, `mobile-dev`, `ml-developer`, `cicd-engineer`, `api-docs`, `system-architect`, `code-analyzer`, `base-template-generator`
 
-## Development Notes
+### Testing & Validation
+`tdd-london-swarm`, `production-validator`
 
-- The application is currently under development with blockchain monitoring and trading logic marked as TODO
-- Uses comprehensive error handling with graceful shutdown procedures
-- Supports both TUI and console-only modes for different deployment scenarios
-- All database operations are async and use proper connection management
-- Configuration validation prevents invalid states at startup
+### Migration & Planning
+`migration-planner`, `swarm-init`
 
-## Development Conventions
+## 🎯 Claude Code vs MCP Tools
 
-### Testing and Validation
-- Always run tests after making changes: `pnpm test`
-- Run type checking before committing: `pnpm typecheck`
-- Run linting and fix issues: `pnpm lint:fix`
-- Use `pnpm test -- -t "TestName"` to run specific tests during development
+### Claude Code Handles ALL:
+- File operations (Read, Write, Edit, MultiEdit, Glob, Grep)
+- Code generation and programming
+- Bash commands and system operations
+- Implementation work
+- Project navigation and analysis
+- TodoWrite and task management
+- Git operations
+- Package management
+- Testing and debugging
 
-### Progress Tracking
-- Always update TODO.md when completing tasks or identifying new work
-- Mark completed items and add new tasks discovered during implementation
-- Keep TODO.md current to track project progress and next steps
+### MCP Tools ONLY:
+- Coordination and planning
+- Memory management
+- Neural features
+- Performance tracking
+- Swarm orchestration
+- GitHub integration
 
-### Git Workflow
-- Always commit changes
-- Do not use emojis or credit claude, clean descriptive commit messages
+**KEY**: MCP coordinates, Claude Code executes.
 
-## Remember!
-- Always add simple, effective tests
-- Always run tests & commit changes
+## 🚀 Quick Setup
+
+```bash
+# Add Claude Flow MCP server
+claude mcp add claude-flow npx claude-flow@alpha mcp start
+```
+
+## MCP Tool Categories
+
+### Coordination
+`swarm_init`, `agent_spawn`, `task_orchestrate`
+
+### Monitoring
+`swarm_status`, `agent_list`, `agent_metrics`, `task_status`, `task_results`
+
+### Memory & Neural
+`memory_usage`, `neural_status`, `neural_train`, `neural_patterns`
+
+### GitHub Integration
+`github_swarm`, `repo_analyze`, `pr_enhance`, `issue_triage`, `code_review`
+
+### System
+`benchmark_run`, `features_detect`, `swarm_monitor`
+
+## 📋 Agent Coordination Protocol
+
+### Every Agent MUST:
+
+**1️⃣ BEFORE Work:**
+```bash
+npx claude-flow@alpha hooks pre-task --description "[task]"
+npx claude-flow@alpha hooks session-restore --session-id "swarm-[id]"
+```
+
+**2️⃣ DURING Work:**
+```bash
+npx claude-flow@alpha hooks post-edit --file "[file]" --memory-key "swarm/[agent]/[step]"
+npx claude-flow@alpha hooks notify --message "[what was done]"
+```
+
+**3️⃣ AFTER Work:**
+```bash
+npx claude-flow@alpha hooks post-task --task-id "[task]"
+npx claude-flow@alpha hooks session-end --export-metrics true
+```
+
+## 🎯 Concurrent Execution Examples
+
+### ✅ CORRECT (Single Message):
+```javascript
+[BatchTool]:
+  // Initialize swarm
+  mcp__claude-flow__swarm_init { topology: "mesh", maxAgents: 6 }
+  mcp__claude-flow__agent_spawn { type: "researcher" }
+  mcp__claude-flow__agent_spawn { type: "coder" }
+  mcp__claude-flow__agent_spawn { type: "tester" }
+  
+  // Spawn agents with Task tool
+  Task("Research agent: Analyze requirements...")
+  Task("Coder agent: Implement features...")
+  Task("Tester agent: Create test suite...")
+  
+  // Batch todos
+  TodoWrite { todos: [
+    {id: "1", content: "Research", status: "in_progress", priority: "high"},
+    {id: "2", content: "Design", status: "pending", priority: "high"},
+    {id: "3", content: "Implement", status: "pending", priority: "high"},
+    {id: "4", content: "Test", status: "pending", priority: "medium"},
+    {id: "5", content: "Document", status: "pending", priority: "low"}
+  ]}
+  
+  // File operations
+  Bash "mkdir -p app/{src,tests,docs}"
+  Write "app/src/index.js"
+  Write "app/tests/index.test.js"
+  Write "app/docs/README.md"
+```
+
+### ❌ WRONG (Multiple Messages):
+```javascript
+Message 1: mcp__claude-flow__swarm_init
+Message 2: Task("agent 1")
+Message 3: TodoWrite { todos: [single todo] }
+Message 4: Write "file.js"
+// This breaks parallel coordination!
+```
+
+## Performance Benefits
+
+- **84.8% SWE-Bench solve rate**
+- **32.3% token reduction**
+- **2.8-4.4x speed improvement**
+- **27+ neural models**
+
+## Hooks Integration
+
+### Pre-Operation
+- Auto-assign agents by file type
+- Validate commands for safety
+- Prepare resources automatically
+- Optimize topology by complexity
+- Cache searches
+
+### Post-Operation
+- Auto-format code
+- Train neural patterns
+- Update memory
+- Analyze performance
+- Track token usage
+
+### Session Management
+- Generate summaries
+- Persist state
+- Track metrics
+- Restore context
+- Export workflows
+
+## Advanced Features (v2.0.0)
+
+- 🚀 Automatic Topology Selection
+- ⚡ Parallel Execution (2.8-4.4x speed)
+- 🧠 Neural Training
+- 📊 Bottleneck Analysis
+- 🤖 Smart Auto-Spawning
+- 🛡️ Self-Healing Workflows
+- 💾 Cross-Session Memory
+- 🔗 GitHub Integration
+
+## Integration Tips
+
+1. Start with basic swarm init
+2. Scale agents gradually
+3. Use memory for context
+4. Monitor progress regularly
+5. Train patterns from success
+6. Enable hooks automation
+7. Use GitHub tools first
+
+## Support
+
+- Documentation: https://github.com/ruvnet/claude-flow
+- Issues: https://github.com/ruvnet/claude-flow/issues
+
+---
+
+Remember: **Claude Flow coordinates, Claude Code creates!**
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
+Never save working files, text/mds and tests to the root folder.

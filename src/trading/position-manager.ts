@@ -11,6 +11,7 @@ import { EventProcessor } from '../events/types';
 import { Logger } from '../utils/logger';
 import { Position, ExitStrategyConfig, TradeResult, Trade } from '../types';
 import { PositionModel } from '../db/models/position';
+import { BaseExitStrategy, ExitStrategy, TokenPrice, ExitEvaluationResult } from './exit-strategy-base';
 import {
   MultiConditionExitStrategy,
   TrailingStopLossExitStrategy,
@@ -22,26 +23,8 @@ import {
   AdvancedStrategyDataProvider,
 } from './advanced-exit-strategies';
 
-/**
- * Interface for current token price data
- */
-export interface TokenPrice {
-  tokenAddress: string;
-  price: number;
-  timestamp: number;
-  source: string;
-}
-
-/**
- * Exit strategy evaluation result
- */
-export interface ExitEvaluationResult {
-  shouldExit: boolean;
-  reason: string;
-  urgency: 'LOW' | 'MEDIUM' | 'HIGH';
-  expectedPrice?: number;
-  partialExitPercentage?: number;
-}
+// Re-export from exit-strategy-base for backward compatibility
+export { TokenPrice, ExitEvaluationResult } from './exit-strategy-base';
 
 /**
  * Position exit request
@@ -54,25 +37,8 @@ export interface PositionExitRequest {
   urgency: 'LOW' | 'MEDIUM' | 'HIGH';
 }
 
-/**
- * Interface for exit strategy implementations
- */
-export interface ExitStrategy {
-  readonly type: ExitStrategyConfig['type'];
-  evaluate(position: PositionModel, currentPrice: TokenPrice): ExitEvaluationResult;
-  getDescription(): string;
-}
-
-/**
- * Base abstract class for exit strategies
- */
-export abstract class BaseExitStrategy implements ExitStrategy {
-  constructor(protected config: ExitStrategyConfig) {}
-
-  abstract get type(): ExitStrategyConfig['type'];
-  abstract evaluate(position: PositionModel, currentPrice: TokenPrice): ExitEvaluationResult;
-  abstract getDescription(): string;
-}
+// Re-export ExitStrategy and BaseExitStrategy from base module
+export { ExitStrategy, BaseExitStrategy } from './exit-strategy-base';
 
 /**
  * Time-based exit strategy

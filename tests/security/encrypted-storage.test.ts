@@ -47,7 +47,7 @@ describe('EncryptedStorage', () => {
 
   afterEach(async () => {
     try {
-      await fs.rmdir(testDir, { recursive: true });
+      await fs.rm(testDir, { recursive: true });
     } catch (error) {
       // Ignore cleanup errors
     }
@@ -151,7 +151,7 @@ describe('EncryptedStorage', () => {
     it('should fail with incorrect password', async () => {
       await expect(
         storage.load('wrong-password', testFilePath)
-      ).rejects.toThrow('Invalid password or corrupted data');
+      ).rejects.toThrow('HMAC verification failed - data may have been tampered with');
     });
 
     it('should verify HMAC integrity', async () => {

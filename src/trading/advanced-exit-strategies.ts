@@ -4,7 +4,7 @@
  * volume analysis, sentiment analysis, and multi-condition strategies
  */
 
-import { BaseExitStrategy, ExitEvaluationResult, TokenPrice } from './position-manager';
+import { BaseExitStrategy, ExitEvaluationResult, TokenPrice } from './exit-strategy-base';
 import { AnalysisUtils } from './analysis-utils';
 import { Logger } from '../utils/logger';
 import { PositionModel } from '../db/models/position';

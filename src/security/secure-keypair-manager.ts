@@ -352,6 +352,7 @@ export class SecureKeypairManager {
       }
       
       // Check for known risky instruction patterns
+      let unknownProgramCount = 0;
       for (const instruction of transaction.instructions) {
         const programId = instruction.programId.toString();
         
@@ -366,6 +367,7 @@ export class SecureKeypairManager {
         ];
         
         if (!knownPrograms.includes(programId)) {
+          unknownProgramCount++;
           warnings.push(`Unknown program detected: ${programId}`);
           if (riskLevel === 'LOW') {
             riskLevel = 'MEDIUM';
@@ -375,9 +377,18 @@ export class SecureKeypairManager {
         }
       }
       
+      // Critical risk conditions
+      if (unknownProgramCount > 3) {
+        warnings.push('Multiple unknown programs detected - potential security risk');
+        riskLevel = 'CRITICAL';
+      }
+      
       // Check transaction size
       const serialized = transaction.serialize({ requireAllSignatures: false });
       if (serialized.length > 1232) { // Max transaction size
+        warnings.push('Transaction size exceeds safe limit');
+        riskLevel = 'CRITICAL';
+      } else if (serialized.length > 1000) {
         warnings.push('Transaction size near maximum limit');
         riskLevel = 'HIGH';
       }

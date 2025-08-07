@@ -1,0 +1,6 @@
+onlyBuiltDependencies:
+  - better-sqlite3
+  - bigint-buffer
+  - bufferutil
+  - sqlite3
+  - utf-8-validate

@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
+import { Keypair } from '@solana/web3.js';
 import { ConfigManager, ConfigValidationError } from './config';
 import CoreController from './core/controller';
 import { Logger } from './utils/logger';
 import { AppConfig, DexConfig } from './types';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Create a logger for the main process
 const logger = new Logger('Main');
@@ -69,11 +72,9 @@ program
   .command('generate-keypair')
   .description('Generate a new Solana keypair for trading')
   .argument('<path>', 'Path to save the keypair file')
-  .action((path: string) => {
+  .action((filePath: string) => {
     try {
-      // TODO: Implement keypair generation when implementing the wallet module
-      logger.info(`Keypair generation not yet implemented`);
-      process.exit(0);
+      generateKeypair(filePath);
     } catch (error) {
       logger.error(`Failed to generate keypair: ${(error as Error).message}`);
       process.exit(1);
@@ -99,6 +100,44 @@ program
       process.exit(1);
     }
   });
+
+/**
+ * Generate a new Solana keypair and save it to the specified path
+ * @param filePath Path to save the keypair file
+ */
+function generateKeypair(filePath: string): void {
+  // Generate a new keypair
+  const keypair = Keypair.generate();
+  
+  // Get the directory from the file path
+  const directory = path.dirname(filePath);
+  
+  // Create the directory if it doesn't exist
+  if (!fs.existsSync(directory)) {
+    fs.mkdirSync(directory, { recursive: true });
+    logger.info(`Created directory: ${directory}`);
+  }
+  
+  // Prepare the keypair data in the format expected by Solana CLI
+  const keypairData = Array.from(keypair.secretKey);
+  
+  // Write the keypair to file
+  fs.writeFileSync(filePath, JSON.stringify(keypairData));
+  
+  // Set secure file permissions (readable/writable by owner only)
+  fs.chmodSync(filePath, 0o600);
+  
+  // Log success information
+  logger.success(`Generated new keypair and saved to: ${filePath}`);
+  logger.info(`Public key: ${keypair.publicKey.toString()}`);
+  logger.info(`File permissions set to 600 (read/write for owner only)`);
+  
+  // Important security notice
+  logger.warning('IMPORTANT: Keep your keypair file secure and never share it!');
+  logger.warning('Consider backing up your keypair in a secure location.');
+  
+  process.exit(0);
+}
 
 // Start the application
 async function main(): Promise<void> {

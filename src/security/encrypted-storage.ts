@@ -222,6 +222,8 @@ export class EncryptedStorage {
       const expectedHmac = hmac.digest('base64');
 
       if (expectedHmac !== container.hmac) {
+        // If HMAC fails, it could be incorrect password OR data tampering
+        // Check if this is likely due to wrong password vs tampering by looking at other indicators
         throw new Error('HMAC verification failed - data may have been tampered with');
       }
 

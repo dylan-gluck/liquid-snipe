@@ -30,6 +30,15 @@ wallet:
   maxTotalRiskPercent: 20
   confirmationRequired: false
   excludedTokens: []
+  hardwareWallet:
+    enabled: false
+    defaultDerivationPath: m/44'/501'/0'/0'
+    timeout: 30000
+    requireConfirmation: true
+    blindSigning: false
+    autoConnect: false
+    reconnectAttempts: 3
+    reconnectDelay: 2000
 tradeConfig:
   minLiquidityUsd: 1000
   maxSlippagePercent: 2
@@ -77,6 +86,78 @@ exitStrategies:
     params:
       monitorDeveloperWallet: true
       exitOnSellPercentage: 10
+  - type: trailing-stop
+    name: Trailing Stop Loss
+    description: Dynamic stop loss that trails behind the highest price
+    enabled: false
+    params:
+      initialStopPercent: 15
+      trailPercent: 10
+      activationPercent: 20
+      maxTrailAmount: 50
+  - type: volatility-stop
+    name: Volatility-Adjusted Stop
+    description: Stop loss that adjusts based on price volatility
+    enabled: false
+    params:
+      baseStopPercent: 15
+      volatilityMultiplier: 0.5
+      lookbackPeriodMinutes: 30
+      minStopPercent: 10
+      maxStopPercent: 25
+  - type: volume-based
+    name: Volume Exit Strategy
+    description: Exit based on trading volume changes
+    enabled: false
+    params:
+      minVolumeUsd: 1000
+      volumeDropThresholdPercent: 70
+      lookbackPeriodMinutes: 15
+      exitOnVolumeSpike: true
+      volumeSpikeMultiplier: 5
+  - type: multi-condition
+    name: Combined Exit Strategy
+    description: Exit when multiple conditions are met
+    enabled: false
+    params:
+      operator: OR
+      priority: HIGHEST_URGENCY
+      conditions:
+        - type: profit
+          enabled: true
+          params:
+            profitPercentage: 30
+        - type: trailing-stop
+          enabled: true
+          params:
+            initialStopPercent: 20
+            trailPercent: 15
+            activationPercent: 25
+  - type: partial-exit
+    name: Staged Exit Strategy
+    description: Exit positions in stages based on different conditions
+    enabled: false
+    params:
+      stages:
+        - triggerCondition:
+            type: profit
+            enabled: true
+            params:
+              profitPercentage: 25
+          exitPercentage: 30
+        - triggerCondition:
+            type: profit
+            enabled: true
+            params:
+              profitPercentage: 50
+          exitPercentage: 50
+        - triggerCondition:
+            type: profit
+            enabled: true
+            params:
+              profitPercentage: 100
+          exitPercentage: 100
+      minStageGapPercent: 5
 database:
   path: ./data/liquid-snipe.db
   backupIntervalHours: 24
@@ -95,6 +176,31 @@ notifications:
     notifyOnTrade: true
     notifyOnPosition: true
     notifyOnError: true
+marketMonitoring:
+  enabled: true
+  priceVolatilityThreshold: 25
+  volumeSpikeMultiplier: 3
+  liquidityDropThreshold: 30
+  monitoringInterval: 30000
+  historicalDataWindow: 60
+  circuitBreakerConfig:
+    failureThreshold: 3
+    successThreshold: 5
+    timeout: 60000
+    monitoringPeriod: 300000
+riskManagement:
+  enabled: true
+  maxTotalExposure: 10000
+  maxSinglePositionSize: 1000
+  maxPortfolioPercentage: 50
+  maxConcentrationRisk: 30
+  maxDailyLoss: 500
+  maxDrawdown: 20
+  volatilityMultiplier: 0.5
+  correlationThreshold: 0.7
+  rebalanceThreshold: 10
+  riskAssessmentInterval: 60000
+  emergencyExitThreshold: 15
 activeStrategy: default
 logLevel: info
 pollingInterval: 1000

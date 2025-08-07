@@ -1,4 +1,4 @@
-import { Connection, Transaction, PublicKey, Keypair } from '@solana/web3.js';
+import { Connection, Transaction, PublicKey, Keypair, SystemProgram } from '@solana/web3.js';
 import { 
   TransactionSimulator, 
   TransactionSecurityConfig,
@@ -58,6 +58,15 @@ describe('TransactionSimulator', () => {
     mockConnection.getFeeForMessage.mockResolvedValue({
       context: { slot: 12345 },
       value: 5000,
+    });
+
+    // Set up the test transaction with proper blockhash and instruction
+    testTransaction.recentBlockhash = 'test-blockhash';
+    testTransaction.feePayer = testKeypair.publicKey;
+    testTransaction.add({
+      keys: [{ pubkey: testKeypair.publicKey, isSigner: true, isWritable: false }],
+      programId: SystemProgram.programId,
+      data: Buffer.alloc(0),
     });
   });
 
@@ -163,7 +172,7 @@ describe('TransactionSimulator', () => {
       const result = simulator.validateSlippage(1000, 900); // 10% slippage (exceeds 5% max)
 
       expect(result.isValid).toBe(false);
-      expect(result.warning).toContain('Minimum amount out too low');
+      expect(result.warning).toContain('Configured slippage 10.00% exceeds maximum 5%');
     });
 
     it('should validate actual slippage when provided', () => {
@@ -236,22 +245,22 @@ describe('TransactionSimulator', () => {
       const result = await simulator.validateGasLimits(testTransaction);
 
       expect(result.isReasonable).toBe(true);
-      expect(result.estimatedFeeSol).toBe(0.005); // 5000 lamports
-      expect(result.estimatedFeeUsd).toBe(0.5); // Mock SOL price $100
+      expect(result.estimatedFeeSol).toBe(0.000005); // 5000 lamports / 1e9 = 0.000005 SOL
+      expect(result.estimatedFeeUsd).toBe(0.0005); // 0.000005 SOL * $100 = $0.0005
       expect(result.warning).toBeUndefined();
     });
 
     it('should warn about high gas fees', async () => {
-      // Mock high gas fee
+      // Mock high gas fee - need 150 million lamports for 15 USD (150000000 / 1e9 * 100 = 15)
       mockConnection.getFeeForMessage.mockResolvedValue({
         context: { slot: 12345 },
-        value: 150000, // High fee
+        value: 150000000, // High fee: 150 million lamports = 0.15 SOL = $15
       });
 
       const result = await simulator.validateGasLimits(testTransaction);
 
       expect(result.isReasonable).toBe(false);
-      expect(result.estimatedFeeUsd).toBe(15); // Above maxGasFeeUsd
+      expect(result.estimatedFeeUsd).toBe(15); // 150000000 lamports / 1e9 * 100 = 15 USD
       expect(result.warning).toContain('Estimated gas fee 15.0000 USD exceeds maximum 10 USD');
     });
 
@@ -267,7 +276,7 @@ describe('TransactionSimulator', () => {
 
       const result = await simulator.validateGasLimits(testTransaction);
 
-      expect(result.warning).toContain('Transaction has 15 instructions - may be complex or inefficient');
+      expect(result.warning).toContain('Transaction has 16 instructions - may be complex or inefficient');
     });
 
     it('should handle gas validation errors gracefully', async () => {

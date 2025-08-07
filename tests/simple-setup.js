@@ -1,54 +1,69 @@
-// Simple setup for testing
-const { Buffer: mockBuffer } = require('buffer');
+// Simple test setup for unit tests to avoid complex global integration setup
 
-// Mock the problematic parts of @solana/web3.js
-const mockBN = {
-  toArrayLike: jest.fn().mockReturnValue(mockBuffer.alloc(32)),
-  toNumber: jest.fn().mockReturnValue(0),
-  toString: jest.fn().mockReturnValue('0'),
-};
+// Set test environment
+process.env.NODE_ENV = 'test';
+process.env.DATABASE_PATH = ':memory:';
 
-// Mock Buffer and BN global dependencies
-global.Buffer = mockBuffer;
-global.BN = jest.fn().mockImplementation(() => mockBN);
-
-jest.mock('@solana/web3.js', () => {
-  const { Buffer: mockBufferInMock } = require('buffer');
-  return {
-    Connection: jest.fn(),
-    PublicKey: jest.fn().mockImplementation((value) => ({
-      toString: () => value,
-      toBase58: () => value,
-      toBuffer: () => mockBufferInMock.from(value),
-      equals: jest.fn().mockReturnValue(false),
+// Mock sqlite3 to prevent native binding issues - THIS MUST BE FIRST
+jest.mock('sqlite3', () => ({
+  Database: jest.fn().mockImplementation(() => ({
+    run: jest.fn((sql, params, callback) => callback && callback(null)),
+    get: jest.fn((sql, params, callback) => callback && callback(null, null)),
+    all: jest.fn((sql, params, callback) => callback && callback(null, [])),
+    close: jest.fn((callback) => callback && callback(null)),
+    serialize: jest.fn((callback) => callback && callback()),
+    prepare: jest.fn(() => ({
+      run: jest.fn((params, callback) => callback && callback(null)),
+      finalize: jest.fn(),
     })),
-    Keypair: {
-      generate: jest.fn().mockReturnValue({
-        publicKey: 'mock-pubkey',
-        secretKey: mockBufferInMock.alloc(64),
-      }),
-    },
-    LAMPORTS_PER_SOL: 1000000000,
-    SystemProgram: {
-      transfer: jest.fn(),
-    },
-    Transaction: jest.fn(),
-    sendAndConfirmTransaction: jest.fn(),
-  };
-});
-
-// Mock the @jup-ag/api module
-jest.mock('@jup-ag/api', () => ({
-  JupiterApi: jest.fn(),
-  JupiterError: jest.fn(),
+  })),
+  OPEN_READWRITE: 1,
+  OPEN_CREATE: 4,
 }));
 
-// Mock axios
-jest.mock('axios', () => ({
-  create: jest.fn(() => ({
-    get: jest.fn(),
-    post: jest.fn(),
+// Mock blessed for TUI testing
+jest.mock('blessed', () => ({
+  screen: jest.fn(() => ({
+    render: jest.fn(),
+    destroy: jest.fn(),
+    key: jest.fn(),
+    append: jest.fn(),
+    on: jest.fn(),
   })),
-  get: jest.fn(),
-  post: jest.fn(),
+  box: jest.fn(() => ({
+    setContent: jest.fn(),
+    render: jest.fn(),
+    on: jest.fn(),
+  })),
+  list: jest.fn(() => ({
+    setItems: jest.fn(),
+    render: jest.fn(),
+    on: jest.fn(),
+  })),
+  table: jest.fn(() => ({
+    setData: jest.fn(),
+    render: jest.fn(),
+    on: jest.fn(),
+  })),
+  textbox: jest.fn(() => ({
+    setValue: jest.fn(),
+    render: jest.fn(),
+    on: jest.fn(),
+  })),
+}));
+
+// Mock Solana Web3.js for trading tests
+jest.mock('@solana/web3.js', () => ({
+  ...jest.requireActual('@solana/web3.js'),
+  Connection: jest.fn().mockImplementation(() => ({
+    getBalance: jest.fn().mockResolvedValue(1000000000), // 1 SOL
+    getTokenAccountsByOwner: jest.fn().mockResolvedValue({ value: [] }),
+    getParsedTokenAccountsByOwner: jest.fn().mockResolvedValue({ value: [] }),
+    getLatestBlockhash: jest.fn().mockResolvedValue({
+      blockhash: 'test-blockhash',
+      lastValidBlockHeight: 12345,
+    }),
+    sendTransaction: jest.fn().mockResolvedValue('test-signature'),
+    confirmTransaction: jest.fn().mockResolvedValue({ value: { err: null } }),
+  })),
 }));

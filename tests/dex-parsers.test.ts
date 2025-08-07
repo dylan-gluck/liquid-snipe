@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from '@jest/globals';
 import { PublicKey } from '@solana/web3.js';
 import {
   RaydiumParser,

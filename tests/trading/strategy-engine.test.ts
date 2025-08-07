@@ -61,7 +61,13 @@ describe('StrategyEngine', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    mockConnectionManager = {} as jest.Mocked<ConnectionManager>;
+    mockConnectionManager = {
+      getConnection: jest.fn().mockReturnValue({
+        // Mock connection object that FallbackLiquidityCalculator expects
+        getTokenSupply: jest.fn().mockResolvedValue(1000000),
+        getTokenAccountsByOwner: jest.fn().mockResolvedValue({ value: [] }),
+      }),
+    } as jest.Mocked<ConnectionManager>;
     mockDbManager = {} as jest.Mocked<DatabaseManager>;
 
     mockTokenInfoService = {
@@ -103,9 +109,16 @@ describe('StrategyEngine', () => {
       disableTui: false,
     } as AppConfig;
 
+    // Add mock PriceFeedService
+    const mockPriceFeedService = {
+      getTokenPrice: jest.fn(),
+      getPoolLiquidity: jest.fn(),
+    } as any;
+
     strategyEngine = new StrategyEngine(
       mockConnectionManager,
       mockTokenInfoService,
+      mockPriceFeedService,
       mockDbManager,
       mockConfig,
     );
@@ -264,12 +277,22 @@ describe('StrategyEngine', () => {
 
   describe('getPoolLiquidity', () => {
     it('should return mock liquidity data', async () => {
-      // Remove the mock to test the real implementation
-      jest.restoreAllMocks();
-      
+      // Mock the price feed service to return pool liquidity data
+      const mockPriceFeedService2 = {
+        getTokenPrice: jest.fn(),
+        getPoolLiquidity: jest.fn().mockResolvedValue({
+          totalLiquidityUsd: 25000,
+          tokenA: { reserve: 1000000 },
+          tokenB: { reserve: 25000000 },
+          priceRatio: 0.00004,
+          volume24h: 50000,
+        }),
+      } as any;
+
       const strategyEngine2 = new StrategyEngine(
         mockConnectionManager,
         mockTokenInfoService,
+        mockPriceFeedService2,
         mockDbManager,
         mockConfig,
       );

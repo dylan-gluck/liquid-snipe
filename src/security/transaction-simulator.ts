@@ -192,8 +192,10 @@ export class TransactionSimulator {
       }
     }
 
+    // Add warning for high configured slippage even without actual amount
     if (!result.isValid && !result.warning) {
-      result.warning = `Minimum amount out too low. Expected: ${calculatedMinimum}, Got: ${minimumAmountOut}`;
+      const configuredSlippage = ((expectedAmountOut - minimumAmountOut) / expectedAmountOut) * 100;
+      result.warning = `Configured slippage ${configuredSlippage.toFixed(2)}% exceeds maximum ${this.config.maxSlippagePercent}%`;
     }
 
     return result;
@@ -292,48 +294,25 @@ export class TransactionSimulator {
    * Validate gas limits and fees for a transaction
    */
   public async validateGasLimits(transaction: Transaction): Promise<GasValidation> {
+    let estimatedFee: { value: number | null } = { value: null };
+    let networkError = false;
+    
     try {
       // Estimate transaction fee
-      const feeCalculator = await this.connection.getRecentBlockhash();
-      const estimatedFee = await this.connection.getFeeForMessage(
+      await this.connection.getRecentBlockhash();
+      estimatedFee = await this.connection.getFeeForMessage(
         transaction.compileMessage(),
         'confirmed'
       );
-
-      const estimatedFeeSol = (estimatedFee.value || 5000) / 1e9; // Convert lamports to SOL
-      const estimatedFeeUsd = estimatedFeeSol * 100; // Mock SOL price of $100
-
-      const result: GasValidation = {
-        estimatedGas: estimatedFee.value || 5000,
-        recommendedGasLimit: (estimatedFee.value || 5000) * 1.2, // 20% buffer
-        gasPrice: 1, // Solana doesn't have variable gas prices like Ethereum
-        estimatedFeeSol,
-        estimatedFeeUsd,
-        isReasonable: estimatedFeeUsd <= this.config.maxGasFeeUsd,
-      };
-
-      if (!result.isReasonable) {
-        result.warning = `Estimated gas fee ${estimatedFeeUsd.toFixed(4)} USD exceeds maximum ${this.config.maxGasFeeUsd} USD`;
-      }
-
-      // Check for unusually high compute unit usage
-      const instructions = transaction.instructions;
-      if (instructions.length > 10) {
-        result.warning = `Transaction has ${instructions.length} instructions - may be complex or inefficient`;
-      }
-
-      this.logger.debug('Gas validation completed', {
-        estimatedFeeSol: result.estimatedFeeSol,
-        estimatedFeeUsd: result.estimatedFeeUsd,
-        isReasonable: result.isReasonable,
-      });
-
-      return result;
     } catch (error) {
+      networkError = true;
       this.logger.error('Gas validation failed:', {
         error: error instanceof Error ? error.message : String(error),
       });
+    }
 
+    // If network error, return defaults
+    if (networkError) {
       return {
         estimatedGas: 5000,
         recommendedGasLimit: 6000,
@@ -344,6 +323,37 @@ export class TransactionSimulator {
         warning: 'Gas validation failed - using default estimates',
       };
     }
+
+    const estimatedFeeSol = (estimatedFee.value || 5000) / 1e9; // Convert lamports to SOL
+    const estimatedFeeUsd = estimatedFeeSol * 100; // Mock SOL price of $100
+
+    const result: GasValidation = {
+      estimatedGas: estimatedFee.value || 5000,
+      recommendedGasLimit: (estimatedFee.value || 5000) * 1.2, // 20% buffer
+      gasPrice: 1, // Solana doesn't have variable gas prices like Ethereum
+      estimatedFeeSol,
+      estimatedFeeUsd,
+      isReasonable: estimatedFeeUsd <= this.config.maxGasFeeUsd,
+    };
+
+    // Set warning for high fees first
+    if (!result.isReasonable) {
+      result.warning = `Estimated gas fee ${estimatedFeeUsd.toFixed(4)} USD exceeds maximum ${this.config.maxGasFeeUsd} USD`;
+    }
+
+    // Check for unusually high compute unit usage (only override if no warning yet)
+    const instructions = transaction.instructions;
+    if (instructions.length > 10 && !result.warning) {
+      result.warning = `Transaction has ${instructions.length} instructions - may be complex or inefficient`;
+    }
+
+    this.logger.debug('Gas validation completed', {
+      estimatedFeeSol: result.estimatedFeeSol,
+      estimatedFeeUsd: result.estimatedFeeUsd,
+      isReasonable: result.isReasonable,
+    });
+
+    return result;
   }
 
   /**

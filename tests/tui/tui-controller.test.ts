@@ -1,3 +1,20 @@
+// CRITICAL: Mock sqlite3 BEFORE any imports that use it
+jest.mock('sqlite3', () => ({
+  Database: jest.fn().mockImplementation(() => ({
+    run: jest.fn((sql, params, callback) => callback && callback(null)),
+    get: jest.fn((sql, params, callback) => callback && callback(null, null)),
+    all: jest.fn((sql, params, callback) => callback && callback(null, [])),
+    close: jest.fn((callback) => callback && callback(null)),
+    serialize: jest.fn((callback) => callback && callback()),
+    prepare: jest.fn(() => ({
+      run: jest.fn((params, callback) => callback && callback(null)),
+      finalize: jest.fn(),
+    })),
+  })),
+  OPEN_READWRITE: 1,
+  OPEN_CREATE: 4,
+}));
+
 import { TuiController } from '../../src/tui';
 import { DatabaseManager } from '../../src/db';
 import { EventManager } from '../../src/events/event-manager';

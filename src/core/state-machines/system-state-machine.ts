@@ -38,6 +38,8 @@ export interface SystemStateContext {
     blockchain: 'MONITORING' | 'STOPPED' | 'ERROR';
     trading: 'ACTIVE' | 'PAUSED' | 'STOPPED' | 'ERROR';
     tui: 'RUNNING' | 'STOPPED' | 'ERROR';
+    priceFeed: 'READY' | 'ERROR';
+    marketData: 'READY' | 'ERROR';
   };
   metrics: {
     totalTrades: number;
@@ -82,6 +84,8 @@ export class SystemStateMachine {
         blockchain: 'STOPPED',
         trading: 'STOPPED',
         tui: 'STOPPED',
+        priceFeed: 'ERROR',
+        marketData: 'ERROR',
       },
       metrics: {
         totalTrades: 0,

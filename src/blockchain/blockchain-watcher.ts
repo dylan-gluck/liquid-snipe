@@ -12,6 +12,7 @@ import {
 import { EventEmitter } from 'events';
 import { ConnectionManager } from './connection-manager';
 import { DexConfig, NewPoolEvent } from '../types';
+import { createDexParser, type PoolCreationInfo } from './dex-parsers';
 
 export interface WatcherStatus {
   isActive: boolean;
@@ -26,6 +27,11 @@ export interface PoolInfo {
   tokenA: string;
   tokenB: string;
   initialLiquidity?: number;
+  creator?: string;
+  baseToken?: string;
+  quoteToken?: string;
+  programId?: string;
+  instructionType?: string;
 }
 
 /**
@@ -279,6 +285,12 @@ export class BlockchainWatcher extends EventEmitter {
           tokenA: poolInfo.tokenA,
           tokenB: poolInfo.tokenB,
           timestamp: Date.now(),
+          creator: poolInfo.creator,
+          baseToken: poolInfo.baseToken,
+          quoteToken: poolInfo.quoteToken,
+          programId: poolInfo.programId,
+          instructionType: poolInfo.instructionType,
+          initialLiquidityUsd: poolInfo.initialLiquidity,
         };
 
         this.status.eventsProcessed++;
@@ -296,6 +308,11 @@ export class BlockchainWatcher extends EventEmitter {
             poolAddress: poolInfo.poolAddress,
             tokenA: poolInfo.tokenA,
             tokenB: poolInfo.tokenB,
+            baseToken: poolInfo.baseToken,
+            quoteToken: poolInfo.quoteToken,
+            creator: poolInfo.creator,
+            programId: poolInfo.programId,
+            instructionType: poolInfo.instructionType,
             signature,
           },
         });
@@ -314,100 +331,66 @@ export class BlockchainWatcher extends EventEmitter {
 
   /**
    * Parse pool creation transaction to extract pool and token information
-   * This is DEX-specific logic that needs to be implemented for each supported DEX
+   * Uses DEX-specific parsers for accurate pool detection
    */
   private parsePoolCreationTransaction(
     tx: ParsedTransactionWithMeta,
     dex: DexConfig,
   ): PoolInfo | null {
     try {
-      // Basic implementation - this would need to be expanded for each DEX
-      // For now, we'll extract basic information from the transaction accounts
-
-      if (!tx.transaction.message.instructions) {
+      // Create appropriate parser for this DEX
+      const parser = createDexParser(dex);
+      
+      // Use DEX-specific parser to extract pool information
+      const poolCreationInfo = parser.parsePoolCreation(tx, dex);
+      
+      if (!poolCreationInfo) {
         return null;
       }
-
-      // Look for the pool creation instruction
-      for (const instruction of tx.transaction.message.instructions) {
-        if (this.isPoolCreationInstructionType(instruction, dex)) {
-          return this.extractPoolInfoFromInstructionType(instruction, tx, dex);
-        }
-      }
-
-      // Also check inner instructions
-      if (tx.meta?.innerInstructions) {
-        for (const innerInstructionSet of tx.meta.innerInstructions) {
-          for (const innerInstruction of innerInstructionSet.instructions) {
-            if (this.isPoolCreationInstructionType(innerInstruction, dex)) {
-              return this.extractPoolInfoFromInstructionType(innerInstruction, tx, dex);
-            }
-          }
-        }
-      }
-
-      return null;
+      
+      // Convert PoolCreationInfo to PoolInfo format
+      return {
+        poolAddress: poolCreationInfo.poolAddress,
+        tokenA: poolCreationInfo.tokenA,
+        tokenB: poolCreationInfo.tokenB,
+        creator: poolCreationInfo.creator,
+        baseToken: poolCreationInfo.baseToken,
+        quoteToken: poolCreationInfo.quoteToken,
+        programId: poolCreationInfo.programId,
+        instructionType: poolCreationInfo.instructionType,
+        initialLiquidity: poolCreationInfo.initialLiquidityUsd,
+      };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.emit('log', {
         level: 'warning',
         message: `Failed to parse pool creation transaction: ${errorMessage}`,
         timestamp: Date.now(),
-        data: { signature: tx.transaction.signatures[0], dex: dex.name },
+        data: { signature: tx.transaction.signatures[0], dex: dex.name, error: errorMessage },
       });
       return null;
     }
   }
 
   /**
-   * Check if instruction is a pool creation instruction
+   * Check if instruction is a pool creation instruction using DEX-specific parser
    */
   private isPoolCreationInstructionType(
     instruction: ParsedInstruction | PartiallyDecodedInstruction | ParsedInnerInstruction,
     dex: DexConfig,
   ): boolean {
-    // This is a basic implementation - would need DEX-specific logic
-    if ('program' in instruction && instruction.program === dex.programId) {
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * Extract pool information from instruction
-   * This is where DEX-specific parsing logic would go
-   */
-  private extractPoolInfoFromInstructionType(
-    instruction: ParsedInstruction | PartiallyDecodedInstruction | ParsedInnerInstruction,
-    tx: ParsedTransactionWithMeta,
-    dex: DexConfig,
-  ): PoolInfo | null {
     try {
-      // Basic implementation - extract accounts from transaction
-      const accounts = tx.transaction.message.accountKeys;
-
-      if (accounts.length < 3) {
-        return null;
-      }
-
-      // For demonstration purposes, we'll use the following logic:
-      // - First account is usually the pool address
-      // - Next two accounts are token accounts A and B
-      // This would need to be refined for each specific DEX
-
-      return {
-        poolAddress: accounts[0].pubkey.toString(),
-        tokenA: accounts[1].pubkey.toString(),
-        tokenB: accounts[2].pubkey.toString(),
-      };
+      const parser = createDexParser(dex);
+      return parser.isPoolCreationInstruction(instruction, dex);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.emit('log', {
-        level: 'warning',
-        message: `Failed to extract pool info from instruction: ${errorMessage}`,
+        level: 'debug',
+        message: `Error checking pool creation instruction: ${errorMessage}`,
         timestamp: Date.now(),
+        data: { dex: dex.name, error: errorMessage },
       });
-      return null;
+      return false;
     }
   }
 

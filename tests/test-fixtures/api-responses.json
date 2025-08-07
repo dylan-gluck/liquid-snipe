@@ -1,0 +1,343 @@
+{
+  "coingecko": {
+    "priceSuccess": {
+      "solana": {
+        "usd": 95.50,
+        "usd_24h_change": 2.5,
+        "usd_market_cap": 45000000000,
+        "usd_24h_vol": 2000000000,
+        "last_updated_at": 1704499200
+      },
+      "bonk": {
+        "usd": 0.00001234,
+        "usd_24h_change": 15.5,
+        "usd_market_cap": 850000000,
+        "usd_24h_vol": 125000000,
+        "last_updated_at": 1704499200
+      }
+    },
+    "priceMultiple": {
+      "solana": {
+        "usd": 95.50,
+        "usd_24h_change": 2.5,
+        "usd_market_cap": 45000000000,
+        "usd_24h_vol": 2000000000,
+        "last_updated_at": 1704499200
+      },
+      "ethereum": {
+        "usd": 2350.75,
+        "usd_24h_change": -1.2,
+        "usd_market_cap": 282000000000,
+        "usd_24h_vol": 15000000000,
+        "last_updated_at": 1704499200
+      },
+      "usd-coin": {
+        "usd": 1.000,
+        "usd_24h_change": 0.01,
+        "usd_market_cap": 28000000000,
+        "usd_24h_vol": 5500000000,
+        "last_updated_at": 1704499200
+      }
+    },
+    "rateLimited": {
+      "error": "rate limited"
+    },
+    "serviceUnavailable": {
+      "error": "Service Unavailable"
+    },
+    "invalidToken": {
+      "error": "Token not found"
+    }
+  },
+  "birdeye": {
+    "tokenOverviewSuccess": {
+      "success": true,
+      "data": {
+        "address": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+        "symbol": "BONK",
+        "name": "Bonk",
+        "decimals": 5,
+        "logoURI": "https://arweave.net/hQiPZOsRZXGXBJd_82PhVdlM_hACsT_q6wqwf5cSY7I",
+        "price": 0.00001234,
+        "priceChange24h": 15.5,
+        "volume24h": 125000000,
+        "marketCap": 850000000,
+        "liquidity": 450000000,
+        "lastTradeUnixTime": 1704499200,
+        "extensions": {
+          "coingeckoId": "bonk"
+        }
+      }
+    },
+    "priceHistorySuccess": {
+      "success": true,
+      "data": {
+        "items": [
+          {
+            "unixTime": 1704412800,
+            "value": 0.00001200,
+            "o": 0.00001150,
+            "h": 0.00001250,
+            "l": 0.00001100,
+            "c": 0.00001200,
+            "v": 500000
+          },
+          {
+            "unixTime": 1704456000,
+            "value": 0.00001234,
+            "o": 0.00001200,
+            "h": 0.00001280,
+            "l": 0.00001180,
+            "c": 0.00001234,
+            "v": 750000
+          },
+          {
+            "unixTime": 1704499200,
+            "value": 0.00001456,
+            "o": 0.00001234,
+            "h": 0.00001500,
+            "l": 0.00001200,
+            "c": 0.00001456,
+            "v": 1200000
+          }
+        ]
+      }
+    },
+    "tokenNotFound": {
+      "success": false,
+      "message": "Token not found"
+    },
+    "serviceError": {
+      "success": false,
+      "message": "Internal server error"
+    }
+  },
+  "jupiter": {
+    "quoteSuccess": {
+      "inputMint": "So11111111111111111111111111111111111111112",
+      "inAmount": "1000000000",
+      "outputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "outAmount": "95000000",
+      "otherAmountThreshold": "94000000",
+      "swapMode": "ExactIn",
+      "slippageBps": 50,
+      "platformFee": null,
+      "priceImpactPct": "0.1",
+      "routePlan": [
+        {
+          "swapInfo": {
+            "ammKey": "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2",
+            "label": "Raydium",
+            "inputMint": "So11111111111111111111111111111111111111112",
+            "outputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            "inAmount": "1000000000",
+            "outAmount": "95000000",
+            "feeAmount": "1000000",
+            "feeMint": "So11111111111111111111111111111111111111112"
+          },
+          "percent": 100
+        }
+      ],
+      "contextSlot": 123456789,
+      "timeTaken": 150
+    },
+    "quoteMultiRoute": {
+      "inputMint": "So11111111111111111111111111111111111111112",
+      "inAmount": "5000000000",
+      "outputMint": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+      "outAmount": "380000000000",
+      "otherAmountThreshold": "376200000000",
+      "swapMode": "ExactIn",
+      "slippageBps": 100,
+      "platformFee": null,
+      "priceImpactPct": "0.25",
+      "routePlan": [
+        {
+          "swapInfo": {
+            "ammKey": "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2",
+            "label": "Raydium",
+            "inputMint": "So11111111111111111111111111111111111111112",
+            "outputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            "inAmount": "3000000000",
+            "outAmount": "285000000",
+            "feeAmount": "3000000",
+            "feeMint": "So11111111111111111111111111111111111111112"
+          },
+          "percent": 60
+        },
+        {
+          "swapInfo": {
+            "ammKey": "2wT8Yq49kHgDzXuPxZSaeLaH1qbmGXtEyPy64bL7aD3c",
+            "label": "Orca",
+            "inputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            "outputMint": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+            "inAmount": "285000000",
+            "outAmount": "228000000000",
+            "feeAmount": "285000",
+            "feeMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+          },
+          "percent": 60
+        },
+        {
+          "swapInfo": {
+            "ammKey": "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP",
+            "label": "Orca",
+            "inputMint": "So11111111111111111111111111111111111111112",
+            "outputMint": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+            "inAmount": "2000000000",
+            "outAmount": "152000000000",
+            "feeAmount": "2000000",
+            "feeMint": "So11111111111111111111111111111111111111112"
+          },
+          "percent": 40
+        }
+      ],
+      "contextSlot": 123456790,
+      "timeTaken": 280
+    },
+    "swapSuccess": {
+      "swapTransaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAEDArczbMia1tLmq7zz4J8kezmgPkg6F+9uyIoLWtxRjy2jUhIVT7lJzREPFxRfwKAz4K9+5YCuSm5MCBczpULyOZEOAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1+fw==",
+      "lastValidBlockHeight": 123456800,
+      "prioritizationFeeLamports": 5000
+    },
+    "insufficientLiquidity": {
+      "error": "Insufficient liquidity for swap",
+      "code": "INSUFFICIENT_LIQUIDITY"
+    },
+    "invalidTokens": {
+      "error": "Invalid token addresses",
+      "code": "INVALID_TOKENS"
+    },
+    "slippageTooHigh": {
+      "error": "Slippage tolerance too high",
+      "code": "SLIPPAGE_ERROR"
+    }
+  },
+  "solanaRpc": {
+    "getLatestBlockhashSuccess": {
+      "jsonrpc": "2.0",
+      "result": {
+        "context": {
+          "slot": 123456789
+        },
+        "value": {
+          "blockhash": "EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N",
+          "lastValidBlockHeight": 123456800
+        }
+      },
+      "id": 1
+    },
+    "getBalanceSuccess": {
+      "jsonrpc": "2.0",
+      "result": {
+        "context": {
+          "slot": 123456789
+        },
+        "value": 1500000000
+      },
+      "id": 1
+    },
+    "getBalanceZero": {
+      "jsonrpc": "2.0",
+      "result": {
+        "context": {
+          "slot": 123456789
+        },
+        "value": 0
+      },
+      "id": 1
+    },
+    "simulateTransactionSuccess": {
+      "jsonrpc": "2.0",
+      "result": {
+        "context": {
+          "slot": 123456789
+        },
+        "value": {
+          "err": null,
+          "logs": [
+            "Program 11111111111111111111111111111111 invoke [1]",
+            "Program 11111111111111111111111111111111 success"
+          ],
+          "unitsConsumed": 150,
+          "returnData": null
+        }
+      },
+      "id": 1
+    },
+    "simulateTransactionFailure": {
+      "jsonrpc": "2.0",
+      "result": {
+        "context": {
+          "slot": 123456789
+        },
+        "value": {
+          "err": {
+            "InstructionError": [0, "InsufficientFunds"]
+          },
+          "logs": [
+            "Program 11111111111111111111111111111111 invoke [1]",
+            "Program 11111111111111111111111111111111 failed: insufficient funds"
+          ],
+          "unitsConsumed": 100
+        }
+      },
+      "id": 1
+    },
+    "networkError": {
+      "error": "Network error: Connection timeout",
+      "code": -1
+    },
+    "invalidMethod": {
+      "jsonrpc": "2.0",
+      "error": {
+        "code": -32601,
+        "message": "Method not found"
+      },
+      "id": 1
+    }
+  },
+  "errors": {
+    "rateLimitExceeded": {
+      "error": "Rate limit exceeded",
+      "retryAfter": 60,
+      "remainingRequests": 0
+    },
+    "serviceUnavailable": {
+      "error": "Service temporarily unavailable",
+      "statusCode": 503,
+      "retryAfter": 300
+    },
+    "invalidRequest": {
+      "error": "Invalid request parameters",
+      "statusCode": 400,
+      "details": "Missing required field: amount"
+    },
+    "unauthorized": {
+      "error": "Unauthorized access",
+      "statusCode": 401,
+      "message": "Invalid API key"
+    },
+    "timeout": {
+      "error": "Request timeout",
+      "statusCode": 408,
+      "timeout": 30000
+    }
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "created": "2024-01-01T00:00:00.000Z",
+    "description": "Mock API responses for testing external service integrations",
+    "usage": {
+      "nock": "Use with nock library to mock HTTP requests in tests",
+      "jest": "Import in Jest tests for consistent mock responses",
+      "integration": "Provides realistic response data for integration testing"
+    },
+    "endpoints": {
+      "coingecko": "https://api.coingecko.com/api/v3",
+      "birdeye": "https://public-api.birdeye.so",
+      "jupiter": "https://quote-api.jup.ag/v6",
+      "solana": "https://api.devnet.solana.com"
+    }
+  }
+}

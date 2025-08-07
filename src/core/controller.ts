@@ -8,6 +8,8 @@ import { TokenInfoService } from '../blockchain/token-info-service';
 import { StrategyEngine } from '../trading/strategy-engine';
 import { TradeExecutor } from '../trading/trade-executor';
 import { PositionManager } from '../trading/position-manager';
+import { PriceFeedService } from '../data/price-feed-service';
+import { MarketDataManager } from '../data/market-data-manager';
 import { TuiController } from '../tui';
 import { EventManager } from '../events/event-manager';
 import {
@@ -27,6 +29,8 @@ export class CoreController {
   private connectionManager: ConnectionManager;
   private blockchainWatcher?: BlockchainWatcher;
   private tokenInfoService?: TokenInfoService;
+  private priceFeedService?: PriceFeedService;
+  private marketDataManager?: MarketDataManager;
   private strategyEngine?: StrategyEngine;
   private tradeExecutor?: TradeExecutor;
   private positionManager?: PositionManager;
@@ -157,15 +161,25 @@ export class CoreController {
   private async initializeTradingComponents(): Promise<void> {
     this.logger.info('Initializing trading components...');
 
-    // Initialize token info service
+    // Initialize Price Feed Service
+    this.priceFeedService = new PriceFeedService();
+    this.logger.info('Price Feed Service initialized');
+
+    // Initialize Market Data Manager
+    this.marketDataManager = new MarketDataManager(this.priceFeedService);
+    this.logger.info('Market Data Manager initialized');
+
+    // Initialize token info service with price feed integration
     this.tokenInfoService = new TokenInfoService(this.connectionManager, this.dbManager, {
       cacheExpiryMinutes: 30,
+      priceFeedService: this.priceFeedService,
     });
 
-    // Initialize strategy engine
+    // Initialize strategy engine with real-time market data
     this.strategyEngine = new StrategyEngine(
       this.connectionManager,
       this.tokenInfoService,
+      this.priceFeedService,
       this.dbManager,
       this.config,
     );

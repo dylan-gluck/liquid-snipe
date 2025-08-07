@@ -115,6 +115,29 @@ export interface ErrorEventData {
   metadata?: Record<string, any>;
 }
 
+// Additional interfaces for workflow events
+export interface ExitRequest {
+  positionId: string;
+  reason: string;
+  urgency: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  partialExitPercentage?: number;
+}
+
+export interface UserCommand {
+  type:
+    | 'EXIT_POSITION'
+    | 'CHANGE_STRATEGY'
+    | 'MANUAL_TRADE'
+    | 'PAUSE_TRADING'
+    | 'RESUME_TRADING'
+    | 'EXPORT_DATA'
+    | 'VIEW_STATUS'
+    | 'HELP';
+  parameters: Record<string, any>;
+  timestamp: number;
+  userId?: string;
+}
+
 /**
  * The complete EventMap that maps event names to their payload types.
  * This ensures full type safety throughout the event system.
@@ -135,6 +158,26 @@ export interface EventMap {
   walletUpdate: WalletUpdateEvent;
   notification: NotificationEvent;
   error: ErrorEventData;
+
+  // Workflow event types
+  systemControl: { action: string; timestamp: number; details?: any };
+  configUpdate: { section?: string; config?: any; timestamp: number };
+  backupCompleted: { backupPath: string; timestamp: number; size?: number; success?: boolean };
+  backupFailed: { error: string; timestamp: number; details?: any };
+  cleanupCompleted: { deletedItems?: number | { logs: number }; logs?: number; timestamp: number; details?: any; success?: boolean };
+  cleanupFailed: { error: string; timestamp: number; details?: any };
+  configUpdateCompleted: { updatedSections: string[]; timestamp: number; details?: any };
+  recoverySuccess: { errorId: string; timestamp: number; context?: string; strategy?: string; attempts?: number; details?: any };
+  recoveryFailed: { errorId: string; error: string; timestamp: number; context?: string; totalAttempts?: number; details?: any };
+  emergencyShutdown: { reason: string; error?: string; timestamp: number };
+  circuitBreakerTriggered: { category: string; reason?: string; timestamp: number };
+  circuitBreakerReset: { category: string; timestamp: number };
+  criticalError: { error?: string; errorId?: string; context: string; timestamp: number; details?: any };
+  exitRequest: ExitRequest;
+  userCommand: UserCommand;
+  tuiCommand: UserCommand;
+  commandResult: { success: boolean; result?: any; error?: string; timestamp: number };
+  strategyChange: { strategy?: string; newStrategy?: any; positionId?: string; config?: any; timestamp?: number };
 }
 
 /**

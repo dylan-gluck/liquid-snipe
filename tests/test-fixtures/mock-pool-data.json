@@ -1,0 +1,292 @@
+{
+  "liquidityPools": [
+    {
+      "address": "TestPool1A2B3C4D5E6F7G8H9I0J1K2L3M4N5O6P7Q8R9S0",
+      "dexName": "Jupiter",
+      "tokenA": "So11111111111111111111111111111111111111112",
+      "tokenB": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "createdAt": 1704067200000,
+      "initialLiquidityUsd": 50000,
+      "lastUpdated": 1704153600000,
+      "currentLiquidityUsd": 75000,
+      "metadata": {
+        "isStable": true,
+        "feeRate": 0.003,
+        "volume24h": 1250000
+      }
+    },
+    {
+      "address": "TestPool2B3C4D5E6F7G8H9I0J1K2L3M4N5O6P7Q8R9S0T1",
+      "dexName": "Raydium",
+      "tokenA": "So11111111111111111111111111111111111111112",
+      "tokenB": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+      "createdAt": 1704153600000,
+      "initialLiquidityUsd": 25000,
+      "lastUpdated": 1704240000000,
+      "currentLiquidityUsd": 35000,
+      "metadata": {
+        "isStable": false,
+        "feeRate": 0.0025,
+        "volume24h": 875000
+      }
+    },
+    {
+      "address": "TestPool3C4D5E6F7G8H9I0J1K2L3M4N5O6P7Q8R9S0T1U2",
+      "dexName": "Orca",
+      "tokenA": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "tokenB": "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So",
+      "createdAt": 1704240000000,
+      "initialLiquidityUsd": 100000,
+      "lastUpdated": 1704326400000,
+      "currentLiquidityUsd": 120000,
+      "metadata": {
+        "isStable": true,
+        "feeRate": 0.001,
+        "volume24h": 2100000
+      }
+    },
+    {
+      "address": "TestPool4D5E6F7G8H9I0J1K2L3M4N5O6P7Q8R9S0T1U2V3",
+      "dexName": "Jupiter",
+      "tokenA": "So11111111111111111111111111111111111111112",
+      "tokenB": "7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs",
+      "createdAt": 1704326400000,
+      "initialLiquidityUsd": 15000,
+      "lastUpdated": 1704412800000,
+      "currentLiquidityUsd": 18000,
+      "metadata": {
+        "isStable": false,
+        "feeRate": 0.005,
+        "volume24h": 450000
+      }
+    },
+    {
+      "address": "TestPool5E6F7G8H9I0J1K2L3M4N5O6P7Q8R9S0T1U2V3W4",
+      "dexName": "Serum",
+      "tokenA": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "tokenB": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+      "createdAt": 1704412800000,
+      "initialLiquidityUsd": 200000,
+      "lastUpdated": 1704499200000,
+      "currentLiquidityUsd": 180000,
+      "metadata": {
+        "isStable": true,
+        "feeRate": 0.002,
+        "volume24h": 3200000
+      }
+    }
+  ],
+  "tokens": [
+    {
+      "address": "So11111111111111111111111111111111111111112",
+      "symbol": "SOL",
+      "name": "Solana",
+      "decimals": 9,
+      "firstSeen": 1704067200000,
+      "isVerified": true,
+      "metadata": {
+        "logoURI": "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png",
+        "coingeckoId": "solana",
+        "currentPrice": 95.50,
+        "marketCap": 45000000000,
+        "volume24h": 2000000000
+      }
+    },
+    {
+      "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "symbol": "USDC",
+      "name": "USD Coin",
+      "decimals": 6,
+      "firstSeen": 1704067200000,
+      "isVerified": true,
+      "metadata": {
+        "logoURI": "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png",
+        "coingeckoId": "usd-coin",
+        "currentPrice": 1.00,
+        "marketCap": 28000000000,
+        "volume24h": 5500000000
+      }
+    },
+    {
+      "address": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+      "symbol": "BONK",
+      "name": "Bonk",
+      "decimals": 5,
+      "firstSeen": 1704153600000,
+      "isVerified": true,
+      "metadata": {
+        "logoURI": "https://arweave.net/hQiPZOsRZXGXBJd_82PhVdlM_hACsT_q6wqwf5cSY7I",
+        "coingeckoId": "bonk",
+        "currentPrice": 0.00001234,
+        "marketCap": 850000000,
+        "volume24h": 125000000
+      }
+    },
+    {
+      "address": "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So",
+      "symbol": "mSOL",
+      "name": "Marinade staked SOL",
+      "decimals": 9,
+      "firstSeen": 1704240000000,
+      "isVerified": true,
+      "metadata": {
+        "logoURI": "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So/logo.png",
+        "coingeckoId": "msol",
+        "currentPrice": 102.30,
+        "marketCap": 1200000000,
+        "volume24h": 45000000
+      }
+    },
+    {
+      "address": "7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs",
+      "symbol": "ETH",
+      "name": "Ethereum (Portal)",
+      "decimals": 8,
+      "firstSeen": 1704326400000,
+      "isVerified": true,
+      "metadata": {
+        "logoURI": "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs/logo.png",
+        "coingeckoId": "ethereum",
+        "currentPrice": 2350.75,
+        "marketCap": 282000000000,
+        "volume24h": 15000000000
+      }
+    },
+    {
+      "address": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+      "symbol": "USDT",
+      "name": "Tether USD",
+      "decimals": 6,
+      "firstSeen": 1704412800000,
+      "isVerified": true,
+      "metadata": {
+        "logoURI": "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB/logo.png",
+        "coingeckoId": "tether",
+        "currentPrice": 0.999,
+        "marketCap": 95000000000,
+        "volume24h": 42000000000
+      }
+    }
+  ],
+  "trades": [
+    {
+      "id": "trade-001",
+      "tokenAddress": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+      "poolAddress": "TestPool2B3C4D5E6F7G8H9I0J1K2L3M4N5O6P7Q8R9S0T1",
+      "direction": "BUY",
+      "amount": 1000000,
+      "price": 0.00001234,
+      "valueUsd": 12.34,
+      "gasFeeUsd": 0.05,
+      "timestamp": 1704240000000,
+      "txSignature": "TestSig1A2B3C4D5E6F7G8H9I0J1K2L3M4N5O6P7Q8R9S0T1U2V3W4X5Y6Z7",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "trade-002",
+      "tokenAddress": "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So",
+      "poolAddress": "TestPool3C4D5E6F7G8H9I0J1K2L3M4N5O6P7Q8R9S0T1U2",
+      "direction": "BUY",
+      "amount": 50,
+      "price": 102.30,
+      "valueUsd": 5115.00,
+      "gasFeeUsd": 0.08,
+      "timestamp": 1704326400000,
+      "txSignature": "TestSig2B3C4D5E6F7G8H9I0J1K2L3M4N5O6P7Q8R9S0T1U2V3W4X5Y6Z7A8",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "trade-003",
+      "tokenAddress": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+      "poolAddress": "TestPool2B3C4D5E6F7G8H9I0J1K2L3M4N5O6P7Q8R9S0T1",
+      "direction": "SELL",
+      "amount": 800000,
+      "price": 0.00001456,
+      "valueUsd": 11.65,
+      "gasFeeUsd": 0.05,
+      "timestamp": 1704412800000,
+      "txSignature": "TestSig3C4D5E6F7G8H9I0J1K2L3M4N5O6P7Q8R9S0T1U2V3W4X5Y6Z7A8B9",
+      "status": "CONFIRMED"
+    }
+  ],
+  "positions": [
+    {
+      "id": "position-001",
+      "tokenAddress": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+      "entryPrice": 0.00001234,
+      "amount": 1000000,
+      "openTimestamp": 1704240000000,
+      "closeTimestamp": 1704412800000,
+      "entryTradeId": "trade-001",
+      "exitTradeId": "trade-003",
+      "exitStrategy": {
+        "type": "profit",
+        "enabled": true,
+        "params": {
+          "profitPercentage": 18
+        }
+      },
+      "status": "CLOSED",
+      "pnlUsd": -0.64,
+      "pnlPercent": -5.2
+    },
+    {
+      "id": "position-002",
+      "tokenAddress": "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So",
+      "entryPrice": 102.30,
+      "amount": 50,
+      "openTimestamp": 1704326400000,
+      "entryTradeId": "trade-002",
+      "exitStrategy": {
+        "type": "profit",
+        "enabled": true,
+        "params": {
+          "profitPercentage": 15,
+          "trailingStopPercent": 5
+        }
+      },
+      "status": "OPEN"
+    }
+  ],
+  "priceHistory": {
+    "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263": [
+      {
+        "price": 0.00001200,
+        "timestamp": 1704153600000,
+        "source": "birdeye"
+      },
+      {
+        "price": 0.00001234,
+        "timestamp": 1704240000000,
+        "source": "birdeye"
+      },
+      {
+        "price": 0.00001456,
+        "timestamp": 1704326400000,
+        "source": "birdeye"
+      },
+      {
+        "price": 0.00001389,
+        "timestamp": 1704412800000,
+        "source": "birdeye"
+      }
+    ],
+    "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So": [
+      {
+        "price": 98.50,
+        "timestamp": 1704240000000,
+        "source": "coingecko"
+      },
+      {
+        "price": 102.30,
+        "timestamp": 1704326400000,
+        "source": "coingecko"
+      },
+      {
+        "price": 105.75,
+        "timestamp": 1704412800000,
+        "source": "coingecko"
+      }
+    ]
+  }
+}

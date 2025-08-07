@@ -281,6 +281,12 @@ export interface NewPoolEvent {
   tokenA: string;
   tokenB: string;
   timestamp: number;
+  creator?: string;
+  baseToken?: string;
+  quoteToken?: string;
+  programId?: string;
+  instructionType?: string;
+  initialLiquidityUsd?: number;
 }
 
 export interface TradeDecision {
@@ -303,6 +309,72 @@ export interface TradeResult {
   actualAmountOut?: number;
   error?: string;
   timestamp: number;
+  priceImpact?: number;
+  slippage?: number;
+  route?: string;
+}
+
+// Jupiter swap related interfaces
+export interface JupiterQuoteResponse {
+  inputMint: string;
+  inAmount: string;
+  outputMint: string;
+  outAmount: string;
+  otherAmountThreshold: string;
+  swapMode: string;
+  slippageBps: number;
+  platformFee: null | any;
+  priceImpactPct: string;
+  routePlan: RoutePlan[];
+  contextSlot: number;
+  timeTaken: number;
+}
+
+export interface RoutePlan {
+  swapInfo: SwapInfo;
+  percent: number;
+}
+
+export interface SwapInfo {
+  ammKey: string;
+  label: string;
+  inputMint: string;
+  outputMint: string;
+  inAmount: string;
+  outAmount: string;
+  feeAmount: string;
+  feeMint: string;
+}
+
+export interface JupiterSwapRequest {
+  quoteResponse: JupiterQuoteResponse;
+  userPublicKey: string;
+  wrapAndUnwrapSol?: boolean;
+  useSharedAccounts?: boolean;
+  feeAccount?: string;
+  trackingAccount?: string;
+  computeUnitPriceMicroLamports?: number;
+  prioritizationFeeLamports?: number;
+  asLegacyTransaction?: boolean;
+  useTokenLedger?: boolean;
+  destinationTokenAccount?: string;
+  dynamicComputeUnitLimit?: boolean;
+  skipUserAccountsRpcCalls?: boolean;
+}
+
+export interface SwapTransactionData {
+  swapTransaction: string;
+  lastValidBlockHeight: number;
+}
+
+export interface TokenAccountInfo {
+  mint: string;
+  owner: string;
+  amount: string;
+  decimals: number;
+  uiAmount: number;
+  uiAmountString: string;
+  address: string;
 }
 
 // Database Entity Types
@@ -405,4 +477,27 @@ export interface CreatorActivity {
   percentage: number; // Percentage of total holdings
   timestamp: number;
   txSignature: string;
+}
+
+// MEV and slippage protection
+export interface SlippageProtection {
+  maxSlippageBps: number;
+  dynamicSlippage: boolean;
+  slippageTolerancePercent: number;
+}
+
+export interface MevProtection {
+  enabled: boolean;
+  maxPriorityFee: number;
+  computeUnitPrice: number;
+  jitProtection: boolean;
+  frontRunningDetection: boolean;
+}
+
+export interface SwapValidation {
+  minimumReceived: number;
+  maximumSlippage: number;
+  priceImpactThreshold: number;
+  liquidityThreshold: number;
+  routeQualityScore: number;
 }

@@ -5,6 +5,7 @@ import { ConnectionManager } from './connection-manager';
 import { DatabaseManager } from '../db';
 import { Token } from '../types';
 import { Logger } from '../utils/logger';
+import { PriceFeedService, PriceData } from '../data/price-feed-service';
 
 /**
  * Represents token holder information
@@ -64,6 +65,7 @@ export class TokenInfoService {
   private connectionManager: ConnectionManager;
   private dbManager: DatabaseManager;
   private logger: Logger;
+  private priceFeedService?: PriceFeedService;
   private cache: Map<string, CacheEntry> = new Map();
   private readonly cacheExpiryMs: number;
 
@@ -72,11 +74,13 @@ export class TokenInfoService {
     dbManager: DatabaseManager,
     options: {
       cacheExpiryMinutes?: number;
+      priceFeedService?: PriceFeedService;
     } = {},
   ) {
     this.connectionManager = connectionManager;
     this.dbManager = dbManager;
     this.logger = new Logger('TokenInfoService');
+    this.priceFeedService = options.priceFeedService;
     this.cacheExpiryMs = (options.cacheExpiryMinutes ?? 30) * 60 * 1000; // Default 30 minutes
   }
 
@@ -116,6 +120,28 @@ export class TokenInfoService {
       }
 
       if (tokenInfo) {
+        // Enhance with price data if price feed service is available
+        if (this.priceFeedService) {
+          try {
+            const priceData = await this.priceFeedService.getTokenPrice(address, tokenInfo.symbol);
+            if (priceData) {
+              tokenInfo.metadata = {
+                ...tokenInfo.metadata,
+                currentPrice: priceData.price,
+                volume24h: priceData.volume24h,
+                marketCap: priceData.marketCap,
+                priceChange24h: priceData.priceChange24h,
+                priceSource: priceData.source,
+                priceTimestamp: priceData.timestamp,
+              };
+            }
+          } catch (error) {
+            this.logger.debug(`Failed to get price data for ${address}`, {
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+        
         // Cache the result
         this.setCachedTokenInfo(address, tokenInfo);
         return tokenInfo;

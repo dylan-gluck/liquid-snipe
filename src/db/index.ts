@@ -1457,6 +1457,122 @@ export class DatabaseManager {
       });
     });
   }
+
+  // Get all positions
+  public async getAllPositions(): Promise<Position[]> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+
+    return new Promise((resolve, reject) => {
+      this.db.all(
+        'SELECT * FROM positions ORDER BY open_timestamp DESC',
+        [],
+        (err: Error | null, rows: any[]) => {
+          if (err) {
+            reject(new DatabaseError(`Failed to get all positions: ${err.message}`));
+          } else {
+            resolve(
+              rows.map(row => ({
+                id: row.id,
+                tokenAddress: row.token_address,
+                entryPrice: row.entry_price,
+                amount: row.amount,
+                openTimestamp: row.open_timestamp,
+                closeTimestamp: row.close_timestamp,
+                entryTradeId: row.entry_trade_id,
+                exitTradeId: row.exit_trade_id,
+                exitStrategy: JSON.parse(row.exit_strategy),
+                status: row.status as 'OPEN' | 'CLOSED',
+                pnlUsd: row.pnl_usd,
+                pnlPercent: row.pnl_percent,
+              })),
+            );
+          }
+        },
+      );
+    });
+  }
+
+  // Get all trades
+  public async getAllTrades(): Promise<Trade[]> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+
+    return new Promise((resolve, reject) => {
+      this.db.all(
+        'SELECT * FROM trades ORDER BY timestamp DESC',
+        [],
+        (err: Error | null, rows: any[]) => {
+          if (err) {
+            reject(new DatabaseError(`Failed to get all trades: ${err.message}`));
+          } else {
+            resolve(
+              rows.map(row => ({
+                id: row.id,
+                poolAddress: row.pool_address,
+                tokenAddress: row.token_address,
+                direction: row.direction as 'BUY' | 'SELL',
+                amount: row.amount,
+                price: row.price,
+                valueUsd: row.value_usd,
+                gasFeeUsd: row.gas_fee_usd,
+                timestamp: row.timestamp,
+                txSignature: row.tx_signature,
+                status: row.status as 'PENDING' | 'CONFIRMED' | 'FAILED',
+              })),
+            );
+          }
+        },
+      );
+    });
+  }
+
+  // Get all pools
+  public async getAllPools(): Promise<LiquidityPool[]> {
+    return this.getLiquidityPools();
+  }
+
+  // Get recent trades
+  public async getRecentTrades(limit = 50): Promise<Trade[]> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+
+    return new Promise((resolve, reject) => {
+      this.db.all(
+        'SELECT * FROM trades ORDER BY timestamp DESC LIMIT ?',
+        [limit],
+        (err: Error | null, rows: any[]) => {
+          if (err) {
+            reject(new DatabaseError(`Failed to get recent trades: ${err.message}`));
+          } else {
+            resolve(
+              rows.map(row => ({
+                id: row.id,
+                poolAddress: row.pool_address,
+                tokenAddress: row.token_address,
+                direction: row.direction as 'BUY' | 'SELL',
+                amount: row.amount,
+                price: row.price,
+                valueUsd: row.value_usd,
+                gasFeeUsd: row.gas_fee_usd,
+                timestamp: row.timestamp,
+                txSignature: row.tx_signature,
+                status: row.status as 'PENDING' | 'CONFIRMED' | 'FAILED',
+              })),
+            );
+          }
+        },
+      );
+    });
+  }
+
+  // Clean up old events
+  public async cleanupOldEvents(olderThanDays: number): Promise<number> {
+    return this.pruneOldLogEvents(olderThanDays);
+  }
 }
 
 // Export model classes

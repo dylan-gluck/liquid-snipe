@@ -254,6 +254,7 @@ export class ErrorRecoveryWorkflowCoordinator {
         // Emit recovery failure event
         this.eventManager.emit('recoveryFailed', {
           errorId: errorEvent.id,
+          error: `Recovery failed after ${errorEvent.recoveryAttempts} attempts`,
           context: errorEvent.context,
           totalAttempts: errorEvent.recoveryAttempts,
           timestamp: Date.now(),

@@ -1,8 +1,10 @@
 import { ConnectionManager } from '../blockchain/connection-manager';
 import { TokenInfoService, TokenInfo } from '../blockchain/token-info-service';
+import { PriceFeedService, PoolData, PriceData } from '../data/price-feed-service';
 import { DatabaseManager } from '../db';
 import { Logger } from '../utils/logger';
 import { NewPoolEvent, TradeDecision, TradeConfig, WalletConfig, AppConfig } from '../types';
+import { FallbackLiquidityCalculator } from './strategy-engine-fallback';
 
 /**
  * Represents a trading strategy interface
@@ -216,22 +218,29 @@ export class RiskAssessmentStrategy extends BaseStrategy {
 export class StrategyEngine {
   private connectionManager: ConnectionManager;
   private tokenInfoService: TokenInfoService;
+  private priceFeedService: PriceFeedService;
   private dbManager: DatabaseManager;
   private config: AppConfig;
   private logger: Logger;
   private strategies: TradeStrategy[];
+  
+  // Import fallback calculator
+  private fallbackCalculator: any;
 
   constructor(
     connectionManager: ConnectionManager,
     tokenInfoService: TokenInfoService,
+    priceFeedService: PriceFeedService,
     dbManager: DatabaseManager,
     config: AppConfig,
   ) {
     this.connectionManager = connectionManager;
     this.tokenInfoService = tokenInfoService;
+    this.priceFeedService = priceFeedService;
     this.dbManager = dbManager;
     this.config = config;
     this.logger = new Logger('StrategyEngine');
+    this.fallbackCalculator = new FallbackLiquidityCalculator(connectionManager.getConnection());
 
     // Initialize default strategies
     this.strategies = [new LiquidityThresholdStrategy(), new RiskAssessmentStrategy()];
@@ -298,14 +307,23 @@ export class StrategyEngine {
 
       const baseToken = newToken === tokenAInfo ? tokenBInfo : tokenAInfo;
 
-      // Get pool liquidity information
+      // Get pool liquidity information with real market data
       const poolLiquidity = await this.getPoolLiquidity(poolEvent.poolAddress);
       if (poolLiquidity === null) {
         this.logger.warning(`Failed to get liquidity for pool ${poolEvent.poolAddress}`);
         return null;
       }
 
-      // Create strategy context
+      // Get current prices for both tokens
+      const [tokenAPrice, tokenBPrice] = await Promise.all([
+        this.priceFeedService.getTokenPrice(poolEvent.tokenA, tokenAInfo.symbol),
+        this.priceFeedService.getTokenPrice(poolEvent.tokenB, tokenBInfo.symbol),
+      ]);
+      
+      // Determine current price of the new token
+      const currentPrice = newToken === tokenAInfo ? tokenAPrice?.price : tokenBPrice?.price;
+
+      // Create strategy context with enhanced market data
       const context: StrategyContext = {
         poolEvent,
         tokenAInfo,
@@ -313,6 +331,7 @@ export class StrategyEngine {
         newToken,
         baseToken,
         poolLiquidity: poolLiquidity.totalLiquidityUsd,
+        currentPrice,
         config: this.config.tradeConfig,
         walletConfig: this.config.wallet,
       };
@@ -359,28 +378,38 @@ export class StrategyEngine {
   }
 
   /**
-   * Get pool liquidity information
+   * Get pool liquidity information from real market data
    */
   public async getPoolLiquidity(poolAddress: string): Promise<PoolLiquidityInfo | null> {
     try {
-      // TODO: Implement actual pool liquidity fetching
-      // For now, return mock data
-      this.logger.debug(`Getting liquidity for pool ${poolAddress}`);
+      this.logger.debug(`Getting real liquidity data for pool ${poolAddress}`);
 
-      // This would normally fetch from the DEX's pool account
-      // and calculate USD value based on token prices
-      return {
-        totalLiquidityUsd: Math.random() * 50000 + 1000, // Mock: $1k-$51k
-        tokenAReserve: Math.random() * 1000000,
-        tokenBReserve: Math.random() * 1000000,
-        priceRatio: Math.random() * 0.01 + 0.0001,
-        volume24h: Math.random() * 10000,
+      // Fetch real pool data from Birdeye API
+      const poolData = await this.priceFeedService.getPoolLiquidity(poolAddress);
+      
+      if (!poolData) {
+        this.logger.warning(`No pool data available for ${poolAddress}, using fallback calculation`);
+        return await this.fallbackCalculator.calculateFallbackLiquidity(poolAddress);
+      }
+
+      // Convert to our internal format
+      const liquidityInfo: PoolLiquidityInfo = {
+        totalLiquidityUsd: poolData.totalLiquidityUsd,
+        tokenAReserve: poolData.tokenA.reserve,
+        tokenBReserve: poolData.tokenB.reserve,
+        priceRatio: poolData.priceRatio,
+        volume24h: poolData.volume24h,
       };
+
+      this.logger.debug(`Pool ${poolAddress} liquidity: $${liquidityInfo.totalLiquidityUsd.toFixed(2)}`);
+      return liquidityInfo;
     } catch (error) {
       this.logger.error(`Failed to get pool liquidity for ${poolAddress}:`, {
         error: error instanceof Error ? error.message : String(error),
       });
-      return null;
+      
+      // Try fallback calculation
+      return await this.fallbackCalculator.calculateFallbackLiquidity(poolAddress);
     }
   }
 
@@ -428,17 +457,27 @@ export class StrategyEngine {
   }
 
   /**
-   * Calculate expected amount out for a trade
+   * Calculate expected amount out for a trade using real market data
    */
   private calculateExpectedAmountOut(
     tradeAmountUsd: number,
     poolLiquidity: number,
     targetToken: TokenInfo,
   ): number {
-    // Simple calculation - in practice this would use AMM formulas
-    // and account for slippage, fees, etc.
-    const mockPrice = 0.0001 + Math.random() * 0.01; // $0.0001 - $0.0101
-    return tradeAmountUsd / mockPrice;
+    // Use real price data if available
+    const currentPrice = targetToken.metadata.currentPrice;
+    if (currentPrice && currentPrice > 0) {
+      // Account for slippage based on trade size vs pool liquidity
+      const tradeImpact = Math.min(tradeAmountUsd / poolLiquidity, 0.1); // Cap at 10%
+      const slippageMultiplier = 1 - (tradeImpact * 0.5); // Reduce by half the impact
+      const effectivePrice = currentPrice * slippageMultiplier;
+      
+      return tradeAmountUsd / effectivePrice;
+    }
+    
+    // Fallback to conservative estimate
+    const fallbackPrice = 0.0001; // Very conservative
+    return tradeAmountUsd / fallbackPrice;
   }
 
   /**

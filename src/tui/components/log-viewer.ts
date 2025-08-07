@@ -82,42 +82,44 @@ export class LogViewer extends BaseComponent {
   }
 
   private setupLogEventHandlers(): void {
-    // Keyboard shortcuts for log viewer
-    this.logElement.key(['f'], () => {
-      this.showFilterDialog();
-    });
+    // Keyboard shortcuts for log viewer (with safety checks for testing)
+    if (typeof this.logElement.key === 'function') {
+      this.logElement.key(['f'], () => {
+        this.showFilterDialog();
+      });
 
-    this.logElement.key(['c'], () => {
-      this.clear();
-    });
+      this.logElement.key(['c'], () => {
+        this.clear();
+      });
 
-    this.logElement.key(['s'], () => {
-      this.toggleAutoScroll();
-    });
+      this.logElement.key(['s'], () => {
+        this.toggleAutoScroll();
+      });
 
-    this.logElement.key(['r'], () => {
-      this.refresh();
-    });
+      this.logElement.key(['r'], () => {
+        this.refresh();
+      });
 
-    this.logElement.key(['pageup'], () => {
-      this.logElement.scroll(-10);
-      this.element.screen?.render();
-    });
+      this.logElement.key(['pageup'], () => {
+        this.logElement.scroll(-10);
+        this.element.screen?.render();
+      });
 
-    this.logElement.key(['pagedown'], () => {
-      this.logElement.scroll(10);
-      this.element.screen?.render();
-    });
+      this.logElement.key(['pagedown'], () => {
+        this.logElement.scroll(10);
+        this.element.screen?.render();
+      });
 
-    this.logElement.key(['home'], () => {
-      this.logElement.setScrollPerc(0);
-      this.element.screen?.render();
-    });
+      this.logElement.key(['home'], () => {
+        this.logElement.setScrollPerc(0);
+        this.element.screen?.render();
+      });
 
-    this.logElement.key(['end'], () => {
-      this.logElement.setScrollPerc(100);
-      this.element.screen?.render();
-    });
+      this.logElement.key(['end'], () => {
+        this.logElement.setScrollPerc(100);
+        this.element.screen?.render();
+      });
+    }
   }
 
   private showFilterDialog(): void {

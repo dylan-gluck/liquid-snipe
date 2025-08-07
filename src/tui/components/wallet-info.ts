@@ -64,6 +64,11 @@ export class WalletInfo extends BaseComponent {
   }
 
   private formatWalletDisplay(): string {
+    // Safety check to ensure walletSummary is defined
+    if (!this.walletSummary) {
+      return '{red-fg}Wallet data not loaded{/red-fg}';
+    }
+
     const { totalValueUsd, totalPnlUsd, totalPnlPercent, openPositions, todayTrades, balances } =
       this.walletSummary;
 

@@ -15,6 +15,60 @@ jest.mock('sqlite3', () => ({
   OPEN_CREATE: 4,
 }));
 
+// Mock the DatabaseManager to prevent initialization delays
+const mockData = {
+  pools: [] as any[],
+  positions: [] as any[],
+  tokens: [] as any[],
+  logEvents: [] as any[],
+};
+
+jest.mock('../../src/db', () => ({
+  DatabaseManager: jest.fn().mockImplementation(() => ({
+    initialize: jest.fn().mockResolvedValue(undefined),
+    close: jest.fn().mockResolvedValue(undefined),
+    addToken: jest.fn().mockImplementation((token) => {
+      mockData.tokens.push(token);
+      return Promise.resolve(undefined);
+    }),
+    addLiquidityPool: jest.fn().mockImplementation((pool) => {
+      mockData.pools.push(pool);
+      return Promise.resolve(undefined);
+    }),
+    addPosition: jest.fn().mockImplementation((position) => {
+      mockData.positions.push(position);
+      return Promise.resolve(undefined);
+    }),
+    addLogEvent: jest.fn().mockImplementation((logEvent) => {
+      mockData.logEvents.push(logEvent);
+      return Promise.resolve(undefined);
+    }),
+    getLiquidityPools: jest.fn().mockResolvedValue(mockData.pools),
+    getOpenPositions: jest.fn().mockResolvedValue(mockData.positions),
+    getRecentLogEvents: jest.fn().mockImplementation((limit) => 
+      Promise.resolve(mockData.logEvents.slice(0, limit))
+    ),
+    getStats: jest.fn().mockResolvedValue({
+      tokenCount: mockData.tokens.length,
+      poolCount: mockData.pools.length,
+      tradeCount: 0,
+      openPositionCount: mockData.positions.length,
+      closedPositionCount: 0,
+      dbSizeBytes: 1024,
+    }),
+  })),
+}));
+
+// Mock the EventManager to prevent initialization delays
+jest.mock('../../src/events/event-manager', () => ({
+  EventManager: jest.fn().mockImplementation(() => ({
+    on: jest.fn(),
+    emit: jest.fn(),
+    removeListener: jest.fn(),
+    removeAllListeners: jest.fn(),
+  })),
+}));
+
 import { TuiController } from '../../src/tui';
 import { DatabaseManager } from '../../src/db';
 import { EventManager } from '../../src/events/event-manager';
@@ -30,6 +84,7 @@ jest.mock('blessed', () => ({
     hide: jest.fn(),
     show: jest.fn(),
     destroy: jest.fn(),
+    focusPop: jest.fn(),
   })),
   box: jest.fn(() => ({
     on: jest.fn(),
@@ -39,7 +94,10 @@ jest.mock('blessed', () => ({
     hide: jest.fn(),
     show: jest.fn(),
     destroy: jest.fn(),
-    screen: null,
+    screen: {
+      render: jest.fn(),
+      focusPop: jest.fn(),
+    },
   })),
   listtable: jest.fn(() => ({
     setData: jest.fn(),
@@ -50,8 +108,13 @@ jest.mock('blessed', () => ({
     hide: jest.fn(),
     show: jest.fn(),
     destroy: jest.fn(),
+    append: jest.fn(),
+    setLabel: jest.fn(),
     selected: 0,
-    screen: null,
+    screen: {
+      render: jest.fn(),
+      focusPop: jest.fn(),
+    },
   })),
   textbox: jest.fn(() => ({
     on: jest.fn(),
@@ -63,12 +126,16 @@ jest.mock('blessed', () => ({
     hide: jest.fn(),
     show: jest.fn(),
     destroy: jest.fn(),
-    screen: null,
+    screen: {
+      render: jest.fn(),
+      focusPop: jest.fn(),
+    },
   })),
   log: jest.fn(() => ({
     log: jest.fn(),
     setContent: jest.fn(),
     key: jest.fn(),
+    on: jest.fn(),
     focus: jest.fn(),
     blur: jest.fn(),
     hide: jest.fn(),
@@ -77,7 +144,12 @@ jest.mock('blessed', () => ({
     scroll: jest.fn(),
     setScrollPerc: jest.fn(),
     alwaysScroll: true,
-    screen: null,
+    append: jest.fn(),
+    setLabel: jest.fn(),
+    screen: {
+      render: jest.fn(),
+      focusPop: jest.fn(),
+    },
   })),
   message: jest.fn(() => ({
     focus: jest.fn(),
@@ -94,8 +166,14 @@ describe('TuiController', () => {
   let mockConfig: AppConfig;
 
   beforeEach(async () => {
-    // Create test database
-    const testDbPath = path.join(__dirname, '..', 'test-data', 'test-tui.db');
+    // Clear mock data between tests
+    mockData.pools.length = 0;
+    mockData.positions.length = 0;
+    mockData.tokens.length = 0;
+    mockData.logEvents.length = 0;
+
+    // Create test database path (in memory for faster tests)
+    const testDbPath = ':memory:';
     
     // Create mock config
     mockConfig = {
@@ -136,7 +214,7 @@ describe('TuiController', () => {
       disableTui: false,
     };
 
-    // Initialize database and event manager
+    // Create mock instances (initialization is mocked to be instant)
     dbManager = new DatabaseManager(testDbPath);
     await dbManager.initialize();
 
@@ -263,7 +341,13 @@ describe('TUI Component Integration', () => {
   let eventManager: EventManager;
 
   beforeEach(async () => {
-    const testDbPath = path.join(__dirname, '..', 'test-data', 'test-integration.db');
+    // Clear mock data between tests
+    mockData.pools.length = 0;
+    mockData.positions.length = 0;
+    mockData.tokens.length = 0;
+    mockData.logEvents.length = 0;
+
+    const testDbPath = ':memory:';
     dbManager = new DatabaseManager(testDbPath);
     await dbManager.initialize();
     eventManager = new EventManager(dbManager, { persistEvents: false });

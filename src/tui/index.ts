@@ -40,7 +40,7 @@ export class TuiController {
   private currentView: string = 'pools';
   private logger: Logger;
   private refreshInterval: NodeJS.Timeout | null = null;
-  private isVisible = true;
+  private isVisible = false;
 
   private theme: TuiTheme = {
     primary: 'blue',
@@ -488,6 +488,8 @@ Press any key to close...
 
   public start(): void {
     this.logger.info('Starting TUI');
+    
+    this.isVisible = true;
 
     // Initial render
     this.updateHeader();

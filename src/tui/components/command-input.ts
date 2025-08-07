@@ -276,7 +276,7 @@ export class CommandInput extends BaseComponent {
 
   public blur(): void {
     // Textbox elements don't have a blur method, focus screen instead
-    if (this.element.screen) {
+    if (this.element.screen && typeof this.element.screen.focusPop === 'function') {
       this.element.screen.focusPop();
     }
   }

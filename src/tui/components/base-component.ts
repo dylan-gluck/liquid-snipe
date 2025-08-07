@@ -141,7 +141,7 @@ export abstract class BaseComponent {
 
   public blur(): void {
     // blessed elements don't have a blur method, focus something else
-    if (this.element.screen) {
+    if (this.element.screen && typeof this.element.screen.focusPop === 'function') {
       this.element.screen.focusPop();
     }
   }

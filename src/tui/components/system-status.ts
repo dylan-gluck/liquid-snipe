@@ -117,6 +117,11 @@ export class SystemStatus extends BaseComponent {
   }
 
   private formatSystemDisplay(): string {
+    // Safety check to ensure systemInfo is defined
+    if (!this.systemInfo) {
+      return '{red-fg}System status not loaded{/red-fg}';
+    }
+
     const { status, uptime, memoryUsage, cpuUsage, connections, lastUpdate } = this.systemInfo;
 
     let content = `{bold}System Status{/bold}\n`;

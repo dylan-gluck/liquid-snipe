@@ -15,6 +15,7 @@ jest.mock('blessed', () => ({
     destroy: jest.fn(),
     screen: {
       render: jest.fn(),
+      focusPop: jest.fn(),
     },
   })),
 }));

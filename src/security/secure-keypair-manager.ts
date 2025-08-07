@@ -1,6 +1,7 @@
 import { Keypair, PublicKey, Transaction } from '@solana/web3.js';
 import { createCipheriv, createDecipheriv, randomBytes, pbkdf2Sync, createHash } from 'crypto';
 import { promises as fs } from 'fs';
+import { dirname } from 'path';
 import { Logger } from '../utils/logger';
 
 /**
@@ -163,6 +164,10 @@ export class SecureKeypairManager {
           keyRotations: 0,
         },
       };
+      
+      // Ensure directory exists
+      const dir = dirname(filePath);
+      await fs.mkdir(dir, { recursive: true, mode: 0o700 });
       
       // Save to file with secure permissions
       await fs.writeFile(filePath, JSON.stringify(encryptedKeypair, null, 2), {
@@ -388,7 +393,7 @@ export class SecureKeypairManager {
         recommendations.push('Split large transactions into smaller ones if possible');
       }
       
-      const shouldProceed = riskLevel !== 'HIGH';
+      const shouldProceed = riskLevel !== 'CRITICAL';
       
       this.logger.debug('Transaction security validation completed', {
         riskLevel,

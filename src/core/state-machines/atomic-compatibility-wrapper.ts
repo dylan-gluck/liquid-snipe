@@ -38,40 +38,52 @@ export class CompatibleAtomicPositionStateMachine {
     trigger: PositionStateTransition,
     contextUpdates?: Partial<PositionStateContext>
   ): boolean {
-    // Use cached result pattern for synchronous interface
-    let result = false;
+    // For immediate synchronous response, check if transition is valid first
+    const currentState = this.getCurrentState();
+    const canTransition = this.atomicStateMachine.canTransition(trigger);
     
-    // Execute atomic transition asynchronously but return immediately
+    // Special handling for redundant transitions that should be ignored
+    if (currentState === PositionState.PAUSED && trigger === PositionStateTransition.PAUSE_REQUESTED) {
+      this.logger.debug(`Position already paused, ignoring redundant pause request`);
+      return false; // Don't count this as a successful transition
+    }
+    
+    if (!canTransition) {
+      this.logger.debug(`Cannot transition from ${currentState} with trigger ${trigger}`);
+      return false;
+    }
+    
+    // Execute atomic transition asynchronously in background
     this.atomicStateMachine.transition(trigger, contextUpdates)
       .then((success) => {
-        result = success;
         if (success) {
           this.updateCachedContext();
+        } else {
+          this.logger.warning(`Atomic transition failed despite pre-check: ${currentState} -> ${trigger}`);
         }
       })
       .catch((error) => {
         this.logger.error(`Atomic transition failed: ${error.message}`);
-        result = false;
       });
 
-    // For immediate synchronous response, check if transition is valid
-    const currentState = this.getCurrentState();
-    const canTransition = this.atomicStateMachine.canTransition(trigger);
-    
-    if (canTransition) {
-      // Update cached context immediately for backward compatibility
-      if (contextUpdates) {
-        this.lastKnownContext = { ...this.lastKnownContext, ...contextUpdates };
-      }
+    // Update cached context immediately for backward compatibility
+    if (contextUpdates) {
+      this.lastKnownContext = { ...this.lastKnownContext, ...contextUpdates };
     }
     
-    return canTransition;
+    return true; // Return true since pre-check passed
   }
 
   /**
    * Synchronous price update with atomic operations
    */
   public updatePrice(currentPrice: number): void {
+    // Validate price input
+    if (currentPrice <= 0 || !isFinite(currentPrice) || isNaN(currentPrice)) {
+      this.logger.warning(`Invalid price update rejected: ${currentPrice}`);
+      return;
+    }
+    
     // Calculate PnL immediately for sync response
     if (this.lastKnownContext.entryPrice) {
       this.lastKnownContext.currentPrice = currentPrice;

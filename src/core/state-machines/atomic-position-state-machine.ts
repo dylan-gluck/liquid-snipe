@@ -177,7 +177,14 @@ export class AtomicPositionStateMachine {
         );
         
         if (exchangeResult !== currentStateValue) {
-          this.logger.warning('CAS failed - concurrent state modification detected');
+          this.logger.warning(`CAS failed - concurrent state modification detected. Expected: ${currentStateValue}, got: ${exchangeResult}`);
+          return false;
+        }
+        
+        // Verify the state actually changed
+        const verifyStateValue = Atomics.load(this.atomicState, 0);
+        if (verifyStateValue !== newStateValue) {
+          this.logger.error(`State verification failed after CAS. Expected: ${newStateValue}, got: ${verifyStateValue}`);
           return false;
         }
 
@@ -206,6 +213,11 @@ export class AtomicPositionStateMachine {
    * Prevents race conditions in price/PnL calculations
    */
   public async updatePrice(currentPrice: number): Promise<void> {
+    // Validate price input
+    if (currentPrice <= 0 || !isFinite(currentPrice) || isNaN(currentPrice)) {
+      this.logger.warning(`Invalid price update rejected: ${currentPrice}`);
+      return;
+    }
     this.performanceTracker.startOperation();
     
     try {
@@ -448,6 +460,23 @@ export class AtomicPositionStateMachine {
           this.logger.info(`Exit rejected for position ${context.positionId}, resuming monitoring`);
         },
       },
+      // Handle redundant requests in EXIT_PENDING state
+      {
+        from: PositionState.EXIT_PENDING,
+        to: PositionState.EXIT_PENDING,
+        trigger: PositionStateTransition.PAUSE_REQUESTED,
+        action: context => {
+          this.logger.debug(`Position ${context.positionId} in exit pending, ignoring pause request`);
+        },
+      },
+      {
+        from: PositionState.EXIT_PENDING,
+        to: PositionState.EXIT_PENDING,
+        trigger: PositionStateTransition.MANUAL_EXIT_REQUESTED,
+        action: context => {
+          this.logger.debug(`Position ${context.positionId} already in exit pending, ignoring duplicate exit request`);
+        },
+      },
 
       // From EXITING - ATOMIC PnL CALCULATION FIX
       {
@@ -500,6 +529,15 @@ export class AtomicPositionStateMachine {
         trigger: PositionStateTransition.MANUAL_EXIT_REQUESTED,
         action: context => {
           this.logger.info(`Manual exit requested for paused position ${context.positionId}`);
+        },
+      },
+      // Handle redundant PAUSE_REQUESTED when already paused
+      {
+        from: PositionState.PAUSED,
+        to: PositionState.PAUSED,
+        trigger: PositionStateTransition.PAUSE_REQUESTED,
+        action: context => {
+          this.logger.debug(`Position ${context.positionId} already paused, ignoring pause request`);
         },
       },
 

@@ -343,8 +343,39 @@ export class AtomicPositionManager {
       }
       
       try {
-        // Atomic transition to closed state
-        const success = stateMachine.transition(
+        const currentState = stateMachine.getCurrentState();
+        
+        // Handle different states appropriately
+        let success = false;
+        
+        if (currentState === PositionState.CLOSED) {
+          this.logger.debug(`Position ${positionId} already closed`);
+          return true;
+        }
+        
+        // If position is in MONITORING or PAUSED, first transition to EXIT_PENDING
+        if (currentState === PositionState.MONITORING || currentState === PositionState.PAUSED) {
+          success = stateMachine.transition(
+            PositionStateTransition.MANUAL_EXIT_REQUESTED,
+            { exitReason: reason }
+          );
+          if (!success) {
+            this.logger.warning(`Failed to initiate exit for position: ${positionId}`);
+            return false;
+          }
+        }
+        
+        // If in EXIT_PENDING, approve the exit
+        if (stateMachine.getCurrentState() === PositionState.EXIT_PENDING) {
+          success = stateMachine.transition(PositionStateTransition.EXIT_APPROVED);
+          if (!success) {
+            this.logger.warning(`Failed to approve exit for position: ${positionId}`);
+            return false;
+          }
+        }
+        
+        // Finally, complete the exit
+        success = stateMachine.transition(
           PositionStateTransition.EXIT_COMPLETED,
           { exitReason: reason }
         );
@@ -354,7 +385,7 @@ export class AtomicPositionManager {
           this.logger.info(`Position closed atomically: ${positionId} - ${reason}`);
           return true;
         } else {
-          this.logger.warning(`Failed to close position: ${positionId}`);
+          this.logger.warning(`Failed to complete exit for position: ${positionId}`);
           return false;
         }
       } catch (error) {

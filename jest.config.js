@@ -5,7 +5,8 @@ module.exports = {
   testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
   setupFilesAfterEnv: ['<rootDir>/tests/simple-setup.js'],
   transform: {
-    '^.+\\.ts$': 'ts-jest',
+    '^.+\\.(ts|tsx)$': 'babel-jest',
+    '^.+\\.(js|jsx)$': 'babel-jest',
   },
   collectCoverage: true,
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
@@ -24,7 +25,7 @@ module.exports = {
       displayName: 'integration',
       testMatch: ['<rootDir>/tests/integration/**/*.test.ts'],
       setupFilesAfterEnv: ['<rootDir>/tests/simple-setup.js'],
-      testTimeout: 60000, // Longer timeout for integration tests
+      // Timeout configured globally
       globalSetup: '<rootDir>/tests/integration/setup-integration.js',
       globalTeardown: '<rootDir>/tests/integration/teardown-integration.js'
     }

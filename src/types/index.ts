@@ -501,3 +501,38 @@ export interface SwapValidation {
   liquidityThreshold: number;
   routeQualityScore: number;
 }
+
+// Token Price Types
+export interface TokenPrice {
+  tokenAddress: string;
+  price: number;
+  timestamp: number;
+  source: string;
+}
+
+// Exit Evaluation Types
+export interface ExitEvaluationResult {
+  shouldExit: boolean;
+  reason: string;
+  urgency: 'LOW' | 'MEDIUM' | 'HIGH';
+  expectedPrice?: number;
+  partialExitPercentage?: number;
+}
+
+// Position Exit Request
+export interface PositionExitRequest {
+  positionId: string;
+  reason: string;
+  urgency: 'LOW' | 'MEDIUM' | 'HIGH';
+  targetPrice?: number;
+  partialExitPercentage?: number;
+}
+
+// Performance Metrics for Atomic Operations
+export interface PerformanceMetrics {
+  success: boolean;
+  latency: number;
+  operation: string;
+  timestamp: number;
+  error?: string;
+}

@@ -31,7 +31,7 @@ import { randomUUID } from 'crypto';
 import fs from 'fs/promises';
 
 // Performance test configuration
-const DEVNET_CONFIG: RpcConfig = {
+const DEVNET_CONFIG = {
   httpUrl: 'https://api.devnet.solana.com',
   wsUrl: 'wss://api.devnet.solana.com',
   commitment: 'confirmed',

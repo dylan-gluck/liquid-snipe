@@ -1,5 +1,5 @@
-// Simple setup for testing
-const { Buffer: mockBuffer } = require('buffer');
+// Simplified setup for atomic tests
+const mockBuffer = require('buffer').Buffer;
 
 // Mock the problematic parts of @solana/web3.js
 const mockBN = {
@@ -13,19 +13,19 @@ global.Buffer = mockBuffer;
 global.BN = jest.fn().mockImplementation(() => mockBN);
 
 jest.mock('@solana/web3.js', () => {
-  const { Buffer: mockBufferInMock } = require('buffer');
+  const mockBuffer = require('buffer').Buffer;
   return {
     Connection: jest.fn(),
     PublicKey: jest.fn().mockImplementation((value) => ({
       toString: () => value,
       toBase58: () => value,
-      toBuffer: () => mockBufferInMock.from(value),
+      toBuffer: () => mockBuffer.from(value),
       equals: jest.fn().mockReturnValue(false),
     })),
     Keypair: {
       generate: jest.fn().mockReturnValue({
         publicKey: 'mock-pubkey',
-        secretKey: mockBufferInMock.alloc(64),
+        secretKey: mockBuffer.alloc(64),
       }),
     },
     LAMPORTS_PER_SOL: 1000000000,
@@ -37,18 +37,30 @@ jest.mock('@solana/web3.js', () => {
   };
 });
 
-// Mock the @jup-ag/api module
-jest.mock('@jup-ag/api', () => ({
-  JupiterApi: jest.fn(),
-  JupiterError: jest.fn(),
+// Mock other dependencies
+jest.mock('async-mutex', () => ({
+  Mutex: jest.fn().mockImplementation(() => ({
+    runExclusive: jest.fn().mockImplementation(async (fn) => await fn()),
+  })),
 }));
 
-// Mock axios
-jest.mock('axios', () => ({
-  create: jest.fn(() => ({
-    get: jest.fn(),
-    post: jest.fn(),
+// Mock logger
+jest.mock('../src/utils/logger', () => ({
+  Logger: jest.fn().mockImplementation((name) => ({
+    info: jest.fn(),
+    debug: jest.fn(),
+    warning: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
   })),
-  get: jest.fn(),
-  post: jest.fn(),
+}));
+
+// Mock database
+jest.mock('../src/db', () => ({
+  DatabaseManager: jest.fn(),
+}));
+
+// Mock event processor
+jest.mock('../src/events/types', () => ({
+  EventProcessor: jest.fn(),
 }));

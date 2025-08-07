@@ -61,14 +61,11 @@ module.exports = async function setupIntegration() {
     console.warn('  Integration tests will run in offline mode where possible');
   }
   
-  // Set up test timeouts
-  const originalTimeout = jasmine?.DEFAULT_TIMEOUT_INTERVAL;
-  if (typeof jasmine !== 'undefined') {
-    jasmine.DEFAULT_TIMEOUT_INTERVAL = 60000; // 60 seconds for integration tests
-  }
+  // Set up test timeouts - Jest handles this through configuration
+  // Store timeout info for reference but don't use jasmine directly
+  global.__ORIGINAL_TIMEOUT__ = 30000; // Jest default
   
-  // Store original timeout for cleanup
-  global.__ORIGINAL_TIMEOUT__ = originalTimeout;
+  console.log('✓ Test timeout configured via Jest configuration');
   
   // Set up global test utilities
   global.testUtils = {

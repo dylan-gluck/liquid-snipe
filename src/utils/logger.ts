@@ -98,6 +98,13 @@ export class Logger {
   }
 
   /**
+   * Log a warning message (alias for warning)
+   */
+  public warn(message: string, data?: Record<string, any>): void {
+    this.log('warning', message, data);
+  }
+
+  /**
    * Log an error message
    */
   public error(message: string, data?: Record<string, any>): void {

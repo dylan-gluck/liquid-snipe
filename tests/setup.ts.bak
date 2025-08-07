@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 
 // Mock the problematic parts of @solana/web3.js
 const mockBN = {

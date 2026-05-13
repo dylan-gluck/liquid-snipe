@@ -3,11 +3,11 @@
   "version": "0.0.1",
   "description": "Solana trading bot that monitors for new liquidity pools and executes trades",
   "scripts": {
-    "check": "bun run lint:fix && bun run fmt",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "fmt": "oxfmt",
-    "fmt:check": "oxfmt --check"
+    "fmt:check": "oxfmt --check",
+    "check": "bun run lint:fix && bun run fmt"
   },
   "dependencies": {
     "@solana/web3.js": "^1.98.4"
@@ -15,6 +15,7 @@
   "devDependencies": {
     "@types/bun": "latest",
     "oxfmt": "^0.49.0",
-    "oxlint": "^1.64.0"
+    "oxlint": "^1.64.0",
+    "oxlint-tsgolint": "^0.22.1"
   }
 }

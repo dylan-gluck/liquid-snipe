@@ -7,7 +7,14 @@
     "lint:fix": "oxlint --fix",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
-    "check": "bun run lint:fix && bun run fmt"
+    "check": "bun run lint:fix && bun run fmt",
+    "monitor": "bun scripts/monitor-liquidity.ts",
+    "capture": "bun scripts/capture-pools.ts",
+    "enrich": "bun scripts/enrich-pools.ts",
+    "snapshot": "bun scripts/snapshot-prices.ts",
+    "signals": "bun scripts/signals.ts",
+    "backtest": "bun scripts/backtest.ts",
+    "demo": "bun scripts/demo.ts"
   },
   "dependencies": {
     "@solana/web3.js": "^1.98.4"

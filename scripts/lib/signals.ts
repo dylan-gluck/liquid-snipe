@@ -354,6 +354,37 @@ export const STRATEGIES: Strategy[] = [
       return 1.0;
     },
   },
+  {
+    // S5: same entries as S4 but exits tuned for short-window sniping. The
+    // default S1-S4 exits assume a 30-60 min hold; in practice the bot
+    // operates on a 5-10 min snapshot horizon where the larger move
+    // targets never fire. S5's lower thresholds + tight trail give the
+    // strategy a chance to lock in 10-30 % wins.
+    id: "S5-fast-trail",
+    entry: {
+      minSol: 0.5,
+      requireMintSanity: true,
+      requireGraduation: false,
+      allowedQuoteMints: QUOTE_WHITELIST,
+    },
+    exit: {
+      ladderRungs: [
+        { profit: 0.1, sell: 0.5 },
+        { profit: 0.25, sell: 0.25 },
+        { profit: 0.5, sell: 0.25 },
+      ],
+      trailPct: 0.08,
+      holdSec: 5 * 60,
+      stopPct: -0.15,
+      drainPct: 0.5,
+      decayN: 4,
+    },
+    sizeSol: (pool) => {
+      if (pool.solValue < 5) return 0.1;
+      if (pool.solValue < 25) return 0.5;
+      return 1.0;
+    },
+  },
 ];
 
 export const STRATEGY_BY_ID: Record<string, Strategy> = Object.fromEntries(

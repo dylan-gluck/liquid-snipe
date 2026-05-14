@@ -14,10 +14,13 @@
     "snapshot": "bun scripts/snapshot-prices.ts",
     "signals": "bun scripts/signals.ts",
     "backtest": "bun scripts/backtest.ts",
-    "demo": "bun scripts/demo.ts"
+    "demo": "bun scripts/demo.ts",
+    "helius:signup": "bun scripts/helius-signup.ts",
+    "helius:capture": "bun scripts/capture-helius.ts"
   },
   "dependencies": {
-    "@solana/web3.js": "^1.98.4"
+    "@solana/web3.js": "^1.98.4",
+    "helius-sdk": "^2.2.2"
   },
   "devDependencies": {
     "@types/bun": "latest",

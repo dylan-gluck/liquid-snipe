@@ -1,6 +1,7 @@
 /** CLI arg parsing helpers shared by every script entry-point. */
 
 import { Connection, type Commitment } from "@solana/web3.js";
+import { loadApiKey } from "./helius.ts";
 
 export function getFlag(argv: string[], flag: string): string | undefined {
   const i = argv.indexOf(flag);
@@ -32,11 +33,24 @@ export interface RpcArgs {
 }
 
 export function parseRpcArgs(argv: string[]): RpcArgs {
+  // Priority: --rpc flag > SOLANA_RPC_HTTP_URL > Helius (if key present) > public mainnet-beta.
+  const heliusKey = loadApiKey();
+  const heliusHttp = heliusKey
+    ? `https://mainnet.helius-rpc.com/?api-key=${heliusKey}`
+    : undefined;
+  const heliusWs = heliusKey
+    ? `wss://mainnet.helius-rpc.com/?api-key=${heliusKey}`
+    : undefined;
   const rpc =
     getFlag(argv, "--rpc") ||
     process.env.SOLANA_RPC_HTTP_URL ||
+    heliusHttp ||
     "https://api.mainnet-beta.solana.com";
-  const ws = getFlag(argv, "--ws") || process.env.SOLANA_RPC_WS_URL || rpc.replace(/^http/, "ws");
+  const ws =
+    getFlag(argv, "--ws") ||
+    process.env.SOLANA_RPC_WS_URL ||
+    heliusWs ||
+    rpc.replace(/^http/, "ws");
   const commitment = (getFlag(argv, "--commitment") as Commitment) || "confirmed";
   return { rpc, ws, commitment };
 }

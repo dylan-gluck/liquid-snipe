@@ -313,7 +313,13 @@ async function main() {
       if (entryIdx < 0 || entryIdx >= series.length - 1) continue;
       const entrySnap = series[entryIdx]!;
       const rest = series.slice(entryIdx + 1);
+      // Sanity floor: skip ghost pools where vault discovery returned an
+      // empty side. Real pools have non-trivial quote reserves; entries
+      // into "pools" with < 10 SOL of quote are noise that produces
+      // ladder-runner artefacts as the price ratio explodes.
       if (entrySnap.priceQuotePerBase <= 0) continue;
+      if (entrySnap.quoteReserve < 10) continue;
+      if (entrySnap.baseReserve <= 0) continue;
       let size = strat.sizeSol(pool);
       if (positionFloor > 0) size = Math.max(size, positionFloor);
 

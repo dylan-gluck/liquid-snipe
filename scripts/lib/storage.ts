@@ -13,9 +13,17 @@ export function ensureDir(path: string): void {
   if (!existsSync(d)) mkdirSync(d, { recursive: true });
 }
 
+/** Replacer that converts BigInt to number — Helius/@solana/kit returns
+ *  bigints for slots, lamports, and blockTime, which JSON.stringify
+ *  refuses by default. Numbers > 2^53 are safe to lose precision on here
+ *  because we only persist slot/blockTime/lamports for display + math
+ *  with much smaller magnitudes. */
+const jsonReplacer = (_key: string, value: unknown): unknown =>
+  typeof value === "bigint" ? Number(value) : value;
+
 export function appendJsonl<T>(path: string, record: T): void {
   ensureDir(path);
-  appendFileSync(path, JSON.stringify(record) + "\n");
+  appendFileSync(path, JSON.stringify(record, jsonReplacer) + "\n");
 }
 
 export function readJsonl<T>(path: string): T[] {
@@ -60,5 +68,5 @@ export function readJson<T>(path: string, fallback: T): T {
 
 export function writeJson<T>(path: string, value: T): void {
   ensureDir(path);
-  writeFileSync(path, JSON.stringify(value, null, 2));
+  writeFileSync(path, JSON.stringify(value, jsonReplacer, 2));
 }

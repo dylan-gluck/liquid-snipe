@@ -28,7 +28,15 @@
 
 import { PublicKey } from "@solana/web3.js";
 import { WSOL, STABLE_MINTS } from "./lib/dexes.ts";
-import { getFlag, getFloat, getInt, hasFlag, makeConnection, parseRpcArgs } from "./lib/cli.ts";
+import {
+  getFlag,
+  getFloat,
+  getInt,
+  hasFlag,
+  makeConnection,
+  parseRpcArgs,
+  silenceRetrySpam,
+} from "./lib/cli.ts";
 import { ANSI, color, fmtSol, shortKey, ts } from "./lib/format.ts";
 import { appendJsonl, readJsonl } from "./lib/storage.ts";
 import type { PoolEvent, PriceSnap } from "./lib/types.ts";
@@ -168,6 +176,7 @@ async function main() {
   const once = hasFlag(argv, "--once");
   const useColor = !hasFlag(argv, "--no-color") && Boolean(process.stdout.isTTY);
   const connection = makeConnection(parseRpcArgs(argv));
+  silenceRetrySpam();
 
   const pools = readJsonl<PoolEvent>(inPath);
   if (pools.length === 0) {
@@ -210,9 +219,14 @@ async function main() {
   const tick = async () => {
     const now = Date.now();
     const active = bindings.filter((b) => b.expiresAt > now);
-    // Parallelism = unlimited per tick; the network of pools we want to
-    // watch (≤ 50) is small enough.
-    await Promise.all(active.map((b) => snapPool(connection, b, useColor, outPath)));
+    // Sequential reads with a small inter-call delay — public Helius
+    // tolerates ~10 RPS, but vault discovery on tick #1 (16 accounts per
+    // pool) bursts much higher than that with Promise.all. Serial is
+    // slow but predictable.
+    for (const b of active) {
+      await snapPool(connection, b, useColor, outPath);
+      await new Promise((r) => setTimeout(r, 120));
+    }
   };
 
   await tick();

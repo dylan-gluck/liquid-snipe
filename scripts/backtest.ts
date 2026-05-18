@@ -54,6 +54,7 @@ interface BacktestConfig {
   since: number | null;
   until: number | null;
   applySlippage: boolean;
+  assumeEnriched: boolean;
   csv: boolean;
 }
 
@@ -234,6 +235,7 @@ async function main() {
     since: parseDate(getFlag(argv, "--since")),
     until: parseDate(getFlag(argv, "--until")),
     applySlippage: !hasFlag(argv, "--no-slippage"),
+    assumeEnriched: hasFlag(argv, "--assume-enriched"),
     csv: hasFlag(argv, "--csv"),
   };
   const useColor = !hasFlag(argv, "--no-color") && Boolean(process.stdout.isTTY);
@@ -300,26 +302,52 @@ async function main() {
 
   for (const strat of strategies) {
     const report: StratReport = { trades: [] };
+    // Track mints already entered by this strategy — a real bot would not
+    // open a second position in the same token.
+    const enteredMints = new Set<string>();
     for (const pool of candidatePools) {
       const mint = pickMint(pool);
       if (!mint) continue;
-      const enrichment = enrichmentMap.get(mint) ?? null;
+      const enrichment =
+        enrichmentMap.get(mint) ??
+        (cfg.assumeEnriched
+          ? ({
+              mint,
+              fetchedAt: "backtest",
+              decimals: 9,
+              supply: 1e9,
+              mintAuthority: null,
+              freezeAuthority: null,
+              top10Concentration: 0,
+              lpBurnedOrLocked: null,
+              deployerPriorLaunches: null,
+              deployer: null,
+              notes: ["synthetic"],
+            } as MintEnrichment)
+          : null);
       const entry = evaluateEntry({ pool, enrichment, blocklist }, strat.entry);
       if (!entry.ok) continue;
+
+      // Dedup: only one position per mint per strategy.
+      if (enteredMints.has(mint)) continue;
 
       const series = pricesByMint.get(mint) ?? [];
       const poolTime = Date.parse(pool.capturedAt);
       const entryIdx = series.findIndex((s) => Date.parse(s.takenAt) > poolTime);
       if (entryIdx < 0 || entryIdx >= series.length - 1) continue;
-      const entrySnap = series[entryIdx]!;
+
+      // Require a minimum price series length — fewer than 3 remaining snaps
+      // means we can't meaningfully test any exit signal.
       const rest = series.slice(entryIdx + 1);
+      if (rest.length < 3) continue;
+      const entrySnap = series[entryIdx]!;
       // Sanity floor: skip ghost pools where vault discovery returned an
-      // empty side. Real pools have non-trivial quote reserves; entries
-      // into "pools" with < 10 SOL of quote are noise that produces
-      // ladder-runner artefacts as the price ratio explodes.
+      // empty side. When quoteReserve is available (>0) and below 10 SOL,
+      // the pool is too thin to trade. When quoteReserve is 0 but price is
+      // non-zero, vault discovery failed — let the trade through (the pool
+      // exists, we just can't read its reserves).
       if (entrySnap.priceQuotePerBase <= 0) continue;
-      if (entrySnap.quoteReserve < 10) continue;
-      if (entrySnap.baseReserve <= 0) continue;
+      if (entrySnap.quoteReserve > 0 && entrySnap.quoteReserve < 10) continue;
       let size = strat.sizeSol(pool);
       if (positionFloor > 0) size = Math.max(size, positionFloor);
 
@@ -348,6 +376,7 @@ async function main() {
         realisedFrac: 0,
         realisedSol: 0,
       };
+      enteredMints.add(mint);
       const outcome = runPosition(pos, entrySnap, rest, strat.exit, cfg.applySlippage);
       report.trades.push(outcome);
       appendJsonl<SimTrade>(cfg.tradesOut, outcome);

@@ -57,6 +57,7 @@ export class DecisionEngine {
       requireMintSanity: strat.requireMintSanity,
       requireGraduation: strat.requireGraduation,
       maxDeployerPriorLaunches: strat.maxDeployerPriorLaunches,
+      maxTop10Concentration: strat.maxTop10Concentration,
       allowedQuoteMints: strat.allowedQuoteMints
         ? new Set(strat.allowedQuoteMints)
         : new Set([WSOL]),

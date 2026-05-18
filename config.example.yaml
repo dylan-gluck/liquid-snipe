@@ -43,6 +43,7 @@ strategies:
     enabled: true
     minSol: 25
     allowedTypes: ["INIT", "DEPOSIT"]
+    allowedDexes: ["meteora-dlmm", "meteora-damm-v2"]
     requireMintSanity: true
     sizeSol: 1.0
     maxSlippageBps: 250
@@ -58,11 +59,11 @@ strategies:
       stopPct: -0.35
       drainPct: 0.5
       decayN: 5
-
   - id: "S3-raydium-fresh-pool"
     enabled: true
     minSol: 5
     allowedTypes: ["INIT"]
+    allowedDexes: ["raydium-clmm"]
     requireMintSanity: true
     sizeSol: 0.5
     maxSlippageBps: 250
@@ -78,10 +79,11 @@ strategies:
       stopPct: -0.30
       drainPct: 0.5
       decayN: 5
-
   - id: "S4-tiered-multidex"
     enabled: true
     minSol: 1
+    allowedDexes:
+      ["meteora-damm-v2", "meteora-dlmm", "raydium-clmm", "orca-whirlpool", "pumpfun", "pumpswap"]
     requireMintSanity: true
     sizeSol: 0.5
     sizeByLiquidity:
@@ -96,15 +98,16 @@ strategies:
         - { profit: 0.5, sell: 0.5 }
         - { profit: 1.0, sell: 0.25 }
         - { profit: 2.0, sell: 0.25 }
-      trailPct: 0.20
+      trailPct: 0.15
       holdSec: 1800
       stopPct: -0.30
       drainPct: 0.5
       decayN: 12
-
   - id: "S5-fast-trail"
     enabled: true
     minSol: 0.5
+    allowedDexes:
+      ["meteora-damm-v2", "meteora-dlmm", "raydium-clmm", "orca-whirlpool", "pumpfun", "pumpswap"]
     requireMintSanity: true
     sizeSol: 0.5
     sizeByLiquidity:
@@ -115,17 +118,19 @@ strategies:
     maxFeeLamports: 75000
     maxSimultaneousPositions: 5
     exit:
-      ladderRungs: []
-      trailPct: 0.05
-      holdSec: 600
-      stopPct: -0.25
-      drainPct: 0.5
+      ladderRungs:
+        - { profit: 0.15, sell: 0.20 }
+      trailPct: 0.10
+      holdSec: 1800
+      stopPct: -0.20
+      drainPct: 0.3
       decayN: 999
-
   - id: "S6-init-sniper"
     enabled: true
     minSol: 3
     allowedTypes: ["INIT", "CREATE"]
+    allowedDexes:
+      ["meteora-damm-v2", "meteora-dlmm", "raydium-clmm", "orca-whirlpool", "pumpfun", "pumpswap"]
     requireMintSanity: true
     sizeSol: 0.5
     sizeByLiquidity:
@@ -137,15 +142,37 @@ strategies:
     maxSimultaneousPositions: 5
     exit:
       ladderRungs:
-        - { profit: 0.5, sell: 0.3 }
-        - { profit: 1.0, sell: 0.3 }
-        - { profit: 2.0, sell: 0.4 }
-      trailPct: 0.10
+        - { profit: 0.15, sell: 0.25 }
+        - { profit: 0.50, sell: 0.25 }
+        - { profit: 1.00, sell: 0.25 }
+      trailPct: 0.08
       holdSec: 3600
-      stopPct: -0.35
-      drainPct: 0.5
+      stopPct: -0.25
+      drainPct: 0.3
       decayN: 999
 
+  - id: "S7-meteora-alpha"
+    enabled: true
+    minSol: 3
+    allowedTypes: ["INIT"]
+    allowedDexes: ["meteora-damm-v2"]
+    requireMintSanity: true
+    sizeSol: 1.0
+    sizeByLiquidity:
+      - { minSol: 0, size: 0.2 }
+      - { minSol: 5, size: 1.0 }
+      - { minSol: 25, size: 2.0 }
+    maxSlippageBps: 250
+    maxFeeLamports: 100000
+    maxSimultaneousPositions: 3
+    exit:
+      ladderRungs:
+        - { profit: 0.10, sell: 0.30 }
+      trailPct: 0.08
+      holdSec: 1800
+      stopPct: -0.25
+      drainPct: 0.3
+      decayN: 999
 risk:
   dailyMaxLossSol: 5
   maxSimFailures: 3

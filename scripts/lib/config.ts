@@ -45,6 +45,7 @@ const StrategyConfigSchema = z.object({
   requireMintSanity: z.boolean().default(true),
   requireGraduation: z.boolean().default(false),
   maxDeployerPriorLaunches: z.number().int().optional(),
+  maxTop10Concentration: z.number().optional(),
   allowedQuoteMints: z.array(z.string()).optional(),
   sizeSol: z.number().default(0.5),
   sizeByLiquidity: z.array(z.object({ minSol: z.number(), size: z.number() })).optional(),

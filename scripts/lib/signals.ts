@@ -37,6 +37,8 @@ export interface EntryConfig {
   maxDeployerPriorLaunches?: number;
   /** Required allowed quote tokens (mints). */
   allowedQuoteMints: Set<string>;
+  /** E8 — max top-10 holder concentration (fraction 0..1). Undefined = skip. */
+  maxTop10Concentration?: number;
 }
 
 // ============================== Entry =====================================
@@ -121,6 +123,19 @@ export function e7QuoteWhitelist(ctx: EntryContext, allowed: Set<string>): Signa
   return { ok: false, reason: "E7 no-allowed-quote" };
 }
 
+/** E8 — top-holder concentration: reject if top-10 holders control too much supply.
+ *  High concentration (> threshold) means a small number of wallets can dump
+ *  and crater the price. Soft-pass when enrichment is unavailable. */
+export function e8Concentration(ctx: EntryContext, maxConcentration: number): SignalDecision {
+  if (!ctx.enrichment) return { ok: true, reason: "E8 no-enrichment" };
+  const c = ctx.enrichment.top10Concentration;
+  if (c <= maxConcentration) return { ok: true, reason: `E8 conc=${(c * 100).toFixed(0)}%` };
+  return {
+    ok: false,
+    reason: `E8 conc=${(c * 100).toFixed(0)}%>${(maxConcentration * 100).toFixed(0)}%`,
+  };
+}
+
 export function evaluateEntry(
   ctx: EntryContext,
   cfg: EntryConfig,
@@ -153,6 +168,9 @@ export function evaluateEntry(
   if (cfg.requireGraduation) checks.push(e5Graduation(ctx));
   if (cfg.maxDeployerPriorLaunches !== undefined) {
     checks.push(e6DeployerRep(ctx, cfg.maxDeployerPriorLaunches));
+  }
+  if (cfg.maxTop10Concentration !== undefined) {
+    checks.push(e8Concentration(ctx, cfg.maxTop10Concentration));
   }
 
   let ok = true;
@@ -209,6 +227,17 @@ export function evaluateExit(
     return { exit: true, reason: "stop", sellFraction: 1, price: px };
   }
 
+  // X5 — liquidity drain, second-highest priority (rug-pull protection).
+  // Runs before ladder/trail so a draining pool doesn't get a false
+  // "trail" exit at an already-deteriorated price.
+  if (
+    cfg.drainPct !== undefined &&
+    pos.baselineQuoteReserve > 0 &&
+    snap.quoteReserve < pos.baselineQuoteReserve * cfg.drainPct
+  ) {
+    return { exit: true, reason: "drain", sellFraction: 1, price: px };
+  }
+
   // X1 — ladder.
   if (cfg.ladderRungs) {
     for (const rung of cfg.ladderRungs) {
@@ -237,16 +266,6 @@ export function evaluateExit(
       return { exit: true, reason: "trail", sellFraction: 1, price: px };
     }
   }
-
-  // X5 — liquidity drain.
-  if (
-    cfg.drainPct !== undefined &&
-    pos.baselineQuoteReserve > 0 &&
-    snap.quoteReserve < pos.baselineQuoteReserve * cfg.drainPct
-  ) {
-    return { exit: true, reason: "drain", sellFraction: 1, price: px };
-  }
-
   // X7 — momentum decay.
   if (cfg.decayN && prevSnaps.length >= cfg.decayN) {
     const tail = prevSnaps.slice(-cfg.decayN).concat(snap);
@@ -335,6 +354,7 @@ export const STRATEGIES: Strategy[] = [
     entry: {
       minSol: 25,
       allowedTypes: ["INIT", "DEPOSIT"],
+      allowedDexes: ["meteora-dlmm", "meteora-damm-v2"],
       requireMintSanity: true,
       requireGraduation: false,
       allowedQuoteMints: QUOTE_WHITELIST,
@@ -347,6 +367,7 @@ export const STRATEGIES: Strategy[] = [
     entry: {
       minSol: 5,
       allowedTypes: ["INIT"],
+      allowedDexes: ["raydium-clmm"],
       requireMintSanity: true,
       requireGraduation: false,
       allowedQuoteMints: QUOTE_WHITELIST,
@@ -355,14 +376,25 @@ export const STRATEGIES: Strategy[] = [
     sizeSol: () => 0.5,
   },
   {
+    // S4: broad catch-all, but exclude the net-negative DEXes.
+    // Data: raydium-amm DEPOSIT is -8.8% avg end return, raydium-cpmm INIT
+    // is -44.8%. Both drag the portfolio.
     id: "S4-tiered-multidex",
     entry: {
       minSol: 1,
+      allowedDexes: [
+        "meteora-damm-v2",
+        "meteora-dlmm",
+        "raydium-clmm",
+        "orca-whirlpool",
+        "pumpfun",
+        "pumpswap",
+      ],
       requireMintSanity: true,
       requireGraduation: false,
       allowedQuoteMints: QUOTE_WHITELIST,
     },
-    exit: { ...BASE_EXIT, trailPct: 0.2, holdSec: 30 * 60, decayN: 12 },
+    exit: { ...BASE_EXIT, trailPct: 0.15, holdSec: 30 * 60, decayN: 12 },
     sizeSol: (pool) => {
       if (pool.solValue < 5) return 0.1;
       if (pool.solValue < 25) return 0.5;
@@ -370,25 +402,33 @@ export const STRATEGIES: Strategy[] = [
     },
   },
   {
-    // S5: "pump before dump" — enter early on any pool creation across all
-    // DEXes, ride the initial pump, exit via tight trailing stop.
-    // Grid search findings: decay kills edge (12/25 trades), tight trail (5%)
-    // captures the pump without giving it all back. No ladder — let winners
-    // run; the trail will catch the exit on the way down.
+    // S5: ride the pump, wider trail to let winners run.
+    // Extended data (80+ min series) proves 5% trail exits too early: costs
+    // +55% on 98sMhv by exiting at +5% when it reaches +42%.
+    // 10% trail + 30min hold + 15%/20% ladder: net positive on 20-trade
+    // dataset even excluding the +239% outlier.
     id: "S5-fast-trail",
     entry: {
       minSol: 0.5,
+      allowedDexes: [
+        "meteora-damm-v2",
+        "meteora-dlmm",
+        "raydium-clmm",
+        "orca-whirlpool",
+        "pumpfun",
+        "pumpswap",
+      ],
       requireMintSanity: true,
       requireGraduation: false,
       allowedQuoteMints: QUOTE_WHITELIST,
     },
     exit: {
-      ladderRungs: [],
-      trailPct: 0.05,
-      holdSec: 10 * 60,
-      stopPct: -0.25,
-      drainPct: 0.5,
-      decayN: 999, // OFF — decay destroys edge on volatile tokens
+      ladderRungs: [{ profit: 0.15, sell: 0.2 }],
+      trailPct: 0.1,
+      holdSec: 30 * 60,
+      stopPct: -0.2,
+      drainPct: 0.3,
+      decayN: 999,
     },
     sizeSol: (pool) => {
       if (pool.solValue < 5) return 0.1;
@@ -397,29 +437,38 @@ export const STRATEGIES: Strategy[] = [
     },
   },
   {
-    // S6: INIT-only sniper — targets pool creation events across all DEXes.
+    // S6: INIT/CREATE sniper — targets new pool creation events.
     // Data: meteora-damm-v2 INIT was +39.5% avg peak at 67% win rate.
-    // Opens the aperture to capture INIT events on every DEX, with wider
-    // trail and patient hold to let big movers run.
+    // Excludes raydium-cpmm (the only INIT with negative returns: -44.8%).
+    // Protective ladder at +15% (sell 25%), then scale out at +50% and +100%.
+    // First rung at 15% (not 20%) to survive slippage on thin INIT pools.
     id: "S6-init-sniper",
     entry: {
       minSol: 3,
       requireMintSanity: true,
       requireGraduation: false,
       allowedTypes: ["INIT", "CREATE"],
+      allowedDexes: [
+        "meteora-damm-v2",
+        "meteora-dlmm",
+        "raydium-clmm",
+        "orca-whirlpool",
+        "pumpfun",
+        "pumpswap",
+      ],
       allowedQuoteMints: QUOTE_WHITELIST,
     },
     exit: {
       ladderRungs: [
-        { profit: 0.5, sell: 0.3 },
-        { profit: 1.0, sell: 0.3 },
-        { profit: 2.0, sell: 0.4 },
+        { profit: 0.15, sell: 0.25 },
+        { profit: 0.5, sell: 0.25 },
+        { profit: 1.0, sell: 0.25 },
       ],
-      trailPct: 0.1,
+      trailPct: 0.08,
       holdSec: 60 * 60,
-      stopPct: -0.35,
-      drainPct: 0.5,
-      decayN: 999, // OFF
+      stopPct: -0.25,
+      drainPct: 0.3,
+      decayN: 999,
     },
     sizeSol: (pool) => {
       if (pool.solValue < 5) return 0.1;
@@ -427,6 +476,38 @@ export const STRATEGIES: Strategy[] = [
       return 1.0;
     },
     maxSimultaneousPositions: 5,
+  },
+  {
+    // S7: Meteora DAMM v2 alpha — the single strongest signal in our dataset.
+    // Data: 7 INIT events, 71% win rate, avg peak +81% (excl. outlier +826k%).
+    // Aggressive sizing on highest-conviction signal.
+    // Protective ladder: sell 30% at +10%. Set lower than S5/S6 because
+    // aggressive sizing causes more entry slippage (9%+ on thin pools),
+    // reducing effective returns. 10% threshold ensures the protective
+    // rung fires even with maximum slippage.
+    id: "S7-meteora-alpha",
+    entry: {
+      minSol: 3,
+      allowedTypes: ["INIT"],
+      allowedDexes: ["meteora-damm-v2"],
+      requireMintSanity: true,
+      requireGraduation: false,
+      allowedQuoteMints: QUOTE_WHITELIST,
+    },
+    exit: {
+      ladderRungs: [{ profit: 0.1, sell: 0.3 }],
+      trailPct: 0.08,
+      holdSec: 30 * 60,
+      stopPct: -0.25,
+      drainPct: 0.3,
+      decayN: 999,
+    },
+    sizeSol: (pool) => {
+      if (pool.solValue < 5) return 0.2;
+      if (pool.solValue < 25) return 1.0;
+      return 2.0;
+    },
+    maxSimultaneousPositions: 3,
   },
 ];
 

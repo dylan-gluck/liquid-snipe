@@ -119,6 +119,7 @@ strategies:
     maxSimultaneousPositions: 5
     exit:
       ladderRungs:
+        - { profit: 0.05, sell: 0.20 }
         - { profit: 0.15, sell: 0.20 }
       trailPct: 0.10
       holdSec: 1800
@@ -142,6 +143,7 @@ strategies:
     maxSimultaneousPositions: 5
     exit:
       ladderRungs:
+        - { profit: 0.05, sell: 0.15 }
         - { profit: 0.15, sell: 0.25 }
         - { profit: 0.50, sell: 0.25 }
         - { profit: 1.00, sell: 0.25 }
@@ -167,6 +169,7 @@ strategies:
     maxSimultaneousPositions: 3
     exit:
       ladderRungs:
+        - { profit: 0.05, sell: 0.20 }
         - { profit: 0.10, sell: 0.30 }
       trailPct: 0.08
       holdSec: 1800

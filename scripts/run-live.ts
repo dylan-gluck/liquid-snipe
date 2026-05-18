@@ -34,7 +34,7 @@ import { RiskGuard } from "./lib/risk-guard.ts";
 import { KillSwitch } from "./lib/killswitch.ts";
 import { AuditLog } from "./lib/audit.ts";
 import { appendJsonl } from "./lib/storage.ts";
-import { DEXES } from "./lib/dexes.ts";
+import { DEXES, STABLE_MINTS } from "./lib/dexes.ts";
 import { findMatchedEvent } from "./lib/liquidity.ts";
 import { computeLiquidityKit, type KitTxLike } from "./lib/helius-liquidity.ts";
 import { makeHelius } from "./lib/helius.ts";
@@ -347,6 +347,15 @@ async function mainLoop() {
       });
       capturedEvents.inc();
       audit.logDetection(tid, event);
+
+      // 1b. Subscribe price feed for ALL detected pools (not just fired ones).
+      //     Gives comprehensive price data for backtesting.
+      if (event.solValue >= lowestMinSol && event.programAccounts.length > 0) {
+        const mint = event.tokens.find((t) => !STABLE_MINTS.has(t));
+        if (mint) {
+          priceFeed.subscribe(mint, event.txSignature, event.dexKey, event.programAccounts);
+        }
+      }
 
       // 2. Pre-filter: skip expensive safety for pools below ALL strategies' minSol.
       //    The per-strategy E2 size gate already rejects these, so safety would be wasted RPC budget.

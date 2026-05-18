@@ -1,25 +1,73 @@
 /**
  * Live price feed — polls on-chain reserve accounts and yields PriceSnap.
  *
- * Primary mode: 1Hz polling via getMultipleAccountsInfo. WebSocket
- * accountSubscribe is an optional enhancement that can be layered later.
+ * Uses getMultipleParsedAccounts to read SPL token vault balances correctly
+ * (uiAmount from parsed token data, NOT raw lamports).
+ *
+ * On subscribe, vault candidates (programAccounts from the pool event) are
+ * stored. On the first poll that touches a subscription, we resolve which
+ * accounts are actually the base/quote SPL token vaults by scanning for
+ * parsed token accounts matching the expected mints.
+ *
+ * Every snapshot is persisted to data/prices.jsonl for backtest consumption.
  */
 
 import { Connection, PublicKey } from "@solana/web3.js";
 import type { PriceSnap } from "./types.ts";
+import { STABLE_MINTS, WSOL } from "./dexes.ts";
+import { appendJsonl } from "./storage.ts";
 import { log } from "./logger.ts";
+
+/** Shape of a parsed SPL token account from getMultipleParsedAccounts. */
+interface ParsedTokenAccount {
+  data: {
+    parsed: {
+      info: {
+        mint: string;
+        tokenAmount: {
+          uiAmount: number | null;
+        };
+      };
+      type: string;
+    };
+    program: string;
+  };
+}
+
+function isParsedTokenAccount(v: unknown): v is ParsedTokenAccount {
+  if (!v || typeof v !== "object") return false;
+  const data = (v as { data?: unknown }).data;
+  if (!data || typeof data !== "object") return false;
+  const parsed = (data as { parsed?: unknown }).parsed;
+  if (!parsed || typeof parsed !== "object") return false;
+  return (parsed as { type?: string }).type === "account";
+}
 
 interface PoolSubscription {
   mint: string;
   pool: string;
   dexKey: string;
-  vaultAccounts: PublicKey[];
+  /** Raw candidate accounts from the pool event — resolved to vaults on first poll. */
+  candidates: PublicKey[];
+  /** Resolved vault addresses. null until vault resolution succeeds. */
+  baseVault: PublicKey | null;
+  quoteVault: PublicKey | null;
+  quoteMint: string;
+  /** Set to true once vault resolution has been attempted (prevents retrying every poll). */
+  resolved: boolean;
+  /** Epoch ms when this subscription expires — prevents unbounded growth. */
+  expiresAt: number;
 }
+
+/** Default subscription TTL: 30 minutes. Covers the full pump/dump cycle. */
+const SUB_TTL_MS = 30 * 60 * 1000;
+
+const PRICES_PATH = "data/prices.jsonl";
 
 export class PriceFeed {
   private readonly conn: Connection;
   private readonly subs = new Map<string, PoolSubscription>();
-  private readonly log = log.child({ component: "price-feed" });
+  private readonly plog = log.child({ component: "price-feed" });
   private timer: ReturnType<typeof setInterval> | null = null;
   private closed = false;
 
@@ -27,24 +75,35 @@ export class PriceFeed {
   private buffer: PriceSnap[] = [];
   private waiter: ((value: void) => void) | null = null;
 
-  constructor(connection: Connection) {
+  /** Poll interval in ms. Conservative for free-tier Helius (10 req/s). */
+  private readonly pollIntervalMs: number;
+
+  constructor(connection: Connection, pollIntervalMs = 5_000) {
     this.conn = connection;
+    this.pollIntervalMs = pollIntervalMs;
   }
 
-  subscribe(mint: string, pool: string, dexKey: string, vaultAccounts: string[]): void {
+  subscribe(mint: string, pool: string, dexKey: string, programAccounts: string[]): void {
+    if (this.subs.has(mint)) return; // already watching
     this.subs.set(mint, {
       mint,
       pool,
       dexKey,
-      vaultAccounts: vaultAccounts.map((a) => new PublicKey(a)),
+      // Take first 16 candidates — vaults are always among early accounts
+      candidates: programAccounts.slice(0, 16).map((a) => new PublicKey(a)),
+      baseVault: null,
+      quoteVault: null,
+      quoteMint: WSOL,
+      resolved: false,
+      expiresAt: Date.now() + SUB_TTL_MS,
     });
-    this.log.info("subscribed", { mint, pool, dexKey, vaults: vaultAccounts.length });
+    this.plog.info("subscribed", { mint: mint.slice(0, 12), pool: pool.slice(0, 12), dexKey });
     this.ensurePolling();
   }
 
   unsubscribe(mint: string): void {
     this.subs.delete(mint);
-    this.log.info("unsubscribed", { mint });
+    this.plog.info("unsubscribed", { mint: mint.slice(0, 12) });
     if (this.subs.size === 0) this.stopPolling();
   }
 
@@ -67,7 +126,6 @@ export class PriceFeed {
   close(): void {
     this.closed = true;
     this.stopPolling();
-    // Unblock any waiting consumer
     this.waiter?.();
     this.waiter = null;
   }
@@ -78,7 +136,7 @@ export class PriceFeed {
     if (this.timer) return;
     this.timer = setInterval(() => {
       void this.poll();
-    }, 1000);
+    }, this.pollIntervalMs);
   }
 
   private stopPolling(): void {
@@ -88,66 +146,122 @@ export class PriceFeed {
     }
   }
 
-  private async poll(): Promise<void> {
-    if (this.subs.size === 0) return;
+  /**
+   * Resolve which of the candidate accounts are the actual base (mint) and
+   * quote (WSOL/USDC/USDT) SPL token vaults.
+   */
+  private async resolveVaults(sub: PoolSubscription): Promise<void> {
+    sub.resolved = true;
+    if (sub.candidates.length === 0) return;
 
-    // Collect all vault accounts across all subscriptions
-    const entries = Array.from(this.subs.values());
-    const allKeys: PublicKey[] = [];
-    const keyIndex: Array<{ subIdx: number; vaultIdx: number }> = [];
-    for (let si = 0; si < entries.length; si++) {
-      const sub = entries[si]!;
-      for (let vi = 0; vi < sub.vaultAccounts.length; vi++) {
-        allKeys.push(sub.vaultAccounts[vi]!);
-        keyIndex.push({ subIdx: si, vaultIdx: vi });
-      }
-    }
-
-    let accounts;
+    let infos;
     try {
-      accounts = await this.conn.getMultipleAccountsInfo(allKeys);
+      infos = await this.conn.getMultipleParsedAccounts(sub.candidates, {
+        commitment: "confirmed",
+      });
     } catch (err) {
-      this.log.warn("poll failed", { err });
+      this.plog.warn("vault resolution failed", {
+        mint: sub.mint.slice(0, 12),
+        error: (err as Error).message,
+      });
       return;
     }
 
-    const now = new Date().toISOString();
-
-    for (const sub of entries) {
-      // Gather reserves for this subscription
-      const reserves: number[] = [];
-      for (let vi = 0; vi < sub.vaultAccounts.length; vi++) {
-        const globalIdx = keyIndex.findIndex((k) => entries[k.subIdx] === sub && k.vaultIdx === vi);
-        const acct = globalIdx >= 0 ? (accounts[globalIdx] ?? null) : null;
-        if (acct) {
-          // Raw lamports → SOL (works for SOL vaults; token vaults
-          // would need SPL token account parsing — acceptable
-          // approximation for phase 5 POC)
-          reserves.push(Number(acct.lamports) / 1e9);
-        } else {
-          reserves.push(0);
-        }
+    for (let i = 0; i < infos.value.length; i++) {
+      const info = infos.value[i];
+      if (!info || !isParsedTokenAccount(info)) continue;
+      const m = info.data.parsed.info.mint;
+      if (m === sub.mint && !sub.baseVault) {
+        sub.baseVault = sub.candidates[i]!;
+      } else if (STABLE_MINTS.has(m) && !sub.quoteVault) {
+        sub.quoteVault = sub.candidates[i]!;
+        sub.quoteMint = m;
       }
+    }
 
-      // Need at least 2 reserves (base + quote vaults) to compute price
-      if (reserves.length < 2) continue;
+    if (sub.baseVault && sub.quoteVault) {
+      this.plog.info("vaults resolved", {
+        mint: sub.mint.slice(0, 12),
+        base: sub.baseVault.toString().slice(0, 12),
+        quote: sub.quoteVault.toString().slice(0, 12),
+      });
+    }
+  }
 
-      const baseReserve = reserves[0]!;
-      const quoteReserve = reserves[1]!;
+  private async poll(): Promise<void> {
+    if (this.subs.size === 0) return;
+
+    // Evict expired subscriptions
+    const now = Date.now();
+    for (const [mint, sub] of this.subs) {
+      if (sub.expiresAt < now) {
+        this.subs.delete(mint);
+      }
+    }
+    if (this.subs.size === 0) {
+      this.stopPolling();
+      return;
+    }
+
+    const entries = Array.from(this.subs.values());
+
+    // Resolve vaults for any unresolved subscriptions (one at a time to limit RPC)
+    for (const sub of entries) {
+      if (!sub.resolved) {
+        await this.resolveVaults(sub);
+      }
+    }
+
+    // Collect resolved vault pairs for batch read
+    const readableSubs: PoolSubscription[] = [];
+    const allKeys: PublicKey[] = [];
+    for (const sub of entries) {
+      if (!sub.baseVault || !sub.quoteVault) continue;
+      readableSubs.push(sub);
+      allKeys.push(sub.baseVault, sub.quoteVault);
+    }
+
+    if (allKeys.length === 0) return;
+
+    let result;
+    try {
+      result = await this.conn.getMultipleParsedAccounts(allKeys, { commitment: "confirmed" });
+    } catch (err) {
+      this.plog.warn("poll failed", { error: (err as Error).message });
+      return;
+    }
+
+    const nowIso = new Date().toISOString();
+    const slot = result.context.slot;
+
+    for (let si = 0; si < readableSubs.length; si++) {
+      const sub = readableSubs[si]!;
+      const baseInfo = result.value[si * 2];
+      const quoteInfo = result.value[si * 2 + 1];
+
+      if (!baseInfo || !quoteInfo) continue;
+      if (!isParsedTokenAccount(baseInfo) || !isParsedTokenAccount(quoteInfo)) continue;
+
+      const baseReserve = baseInfo.data.parsed.info.tokenAmount.uiAmount ?? 0;
+      const quoteReserve = quoteInfo.data.parsed.info.tokenAmount.uiAmount ?? 0;
       if (baseReserve <= 0) continue;
 
       const snap: PriceSnap = {
-        takenAt: now,
-        slot: 0, // We don't have slot from getMultipleAccountsInfo context
+        takenAt: nowIso,
+        slot,
         mint: sub.mint,
-        pool: sub.pool,
+        pool: sub.baseVault!.toString(),
         dexKey: sub.dexKey,
         baseReserve,
         quoteReserve,
         priceQuotePerBase: quoteReserve / baseReserve,
-        quoteMint: "So11111111111111111111111111111111111111112",
+        quoteMint: sub.quoteMint,
       };
 
+      // Persist for backtest consumption
+      appendJsonl<PriceSnap>(PRICES_PATH, snap);
+
+      // Buffer for the exit loop consumer
       this.buffer.push(snap);
     }
 

@@ -423,7 +423,10 @@ export const STRATEGIES: Strategy[] = [
       allowedQuoteMints: QUOTE_WHITELIST,
     },
     exit: {
-      ladderRungs: [{ profit: 0.15, sell: 0.2 }],
+      ladderRungs: [
+        { profit: 0.05, sell: 0.2 },
+        { profit: 0.15, sell: 0.2 },
+      ],
       trailPct: 0.1,
       holdSec: 30 * 60,
       stopPct: -0.2,
@@ -460,6 +463,7 @@ export const STRATEGIES: Strategy[] = [
     },
     exit: {
       ladderRungs: [
+        { profit: 0.05, sell: 0.15 },
         { profit: 0.15, sell: 0.25 },
         { profit: 0.5, sell: 0.25 },
         { profit: 1.0, sell: 0.25 },
@@ -495,7 +499,10 @@ export const STRATEGIES: Strategy[] = [
       allowedQuoteMints: QUOTE_WHITELIST,
     },
     exit: {
-      ladderRungs: [{ profit: 0.1, sell: 0.3 }],
+      ladderRungs: [
+        { profit: 0.05, sell: 0.2 },
+        { profit: 0.1, sell: 0.3 },
+      ],
       trailPct: 0.08,
       holdSec: 30 * 60,
       stopPct: -0.25,

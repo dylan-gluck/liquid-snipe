@@ -142,7 +142,8 @@ export const DEX_BY_PROGRAM: Record<string, DexEntry> = Object.fromEntries(
 export const WSOL = "So11111111111111111111111111111111111111112";
 export const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 export const USDT = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB";
-export const STABLE_MINTS = new Set([WSOL, USDC, USDT]);
+export const USD1 = "USD1ttGY1N17NEEHLmELoaybftRBUSErhqYiQzvEmuB";
+export const STABLE_MINTS = new Set([WSOL, USDC, USDT, USD1]);
 export const BURN_ADDRESSES = new Set([
   "11111111111111111111111111111111",
   "1nc1nerator11111111111111111111111111111111",

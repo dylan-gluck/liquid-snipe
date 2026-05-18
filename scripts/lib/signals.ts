@@ -315,6 +315,17 @@ export interface Strategy {
   maxFeeLamports?: number;
   maxSimultaneousPositions?: number;
   enabled?: boolean;
+  /**
+   * Momentum confirmation: require price to change by at least
+   * `confirmationPct` within `confirmationSnaps` snapshots after the
+   * pool event before entering. The backtest enters at the confirmation
+   * snap, not the pool-creation snap.
+   */
+  confirmationSnaps?: number;
+  /** Minimum absolute price change fraction to confirm entry (e.g. 0.01 = 1%). */
+  confirmationPct?: number;
+  /** Only trade mints whose price-snap quoteMint is WSOL. */
+  requireWsolQuote?: boolean;
 }
 
 const QUOTE_WHITELIST = new Set([
@@ -515,6 +526,53 @@ export const STRATEGIES: Strategy[] = [
       return 2.0;
     },
     maxSimultaneousPositions: 3,
+  },
+  {
+    // S8: Confirmed moonshot — the data-driven edge.
+    //
+    // Meme-coin economics: most new pools either moon or sit flat.
+    // Instant rugs exist but are a minority. The strategy:
+    //   1. Wait for movement confirmation (>1% change in first 3 snaps)
+    //      — filters flat/dead pools and many instant rugs.
+    //   2. Enter at the confirmation snap (not blind at pool creation).
+    //   3. Sell 100% at +25% TP. No trail, no ladder — just dump.
+    //   4. Short hold (10 min) so late dumps don't eat gains.
+    //   5. Tiny positions (0.1 SOL) — one moonshot pays for many duds.
+    //   6. WSOL quote only — consistent pricing, no stablecoin pair noise.
+    //
+    // Data (146 WSOL trajectories, 4 days):
+    //   24 confirmed entries → 18 hit +25% TP (75%), 6 rugged (-100%).
+    //   Net +0.27 SOL on 0.1 SOL positions.
+    //   TP=25% beats TP=50% because 2 extra wins (tokens that pump 25-49%
+    //   before dumping) more than compensate for smaller per-trade gain.
+    id: "S8-confirmed-moon",
+    entry: {
+      minSol: 0.5,
+      allowedDexes: [
+        "meteora-damm-v2",
+        "meteora-dlmm",
+        "pumpfun",
+        "pumpswap",
+        "raydium-clmm",
+        "orca-whirlpool",
+      ],
+      requireMintSanity: false,
+      requireGraduation: false,
+      allowedQuoteMints: QUOTE_WHITELIST,
+    },
+    exit: {
+      ladderRungs: [{ profit: 0.25, sell: 1.0 }],
+      holdSec: 10 * 60,
+      decayN: 999,
+    },
+    sizeSol: (_pool) => {
+      // Tiny position; capped at 0.5% of pool reserves to minimise slippage.
+      // The caller (backtest / live) can further cap via quoteReserve.
+      return 0.1;
+    },
+    confirmationSnaps: 3,
+    confirmationPct: 0.01,
+    requireWsolQuote: true,
   },
 ];
 

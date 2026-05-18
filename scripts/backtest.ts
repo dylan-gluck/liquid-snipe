@@ -30,7 +30,7 @@ import { getFlag, getFloat, hasFlag } from "./lib/cli.ts";
 import { ANSI, color, fmtPct, fmtSol, ts } from "./lib/format.ts";
 import { appendJsonl, readJson, readJsonl, writeJson } from "./lib/storage.ts";
 import { STRATEGIES, STRATEGY_BY_ID, evaluateEntry, evaluateExit } from "./lib/signals.ts";
-import { STABLE_MINTS } from "./lib/dexes.ts";
+import { STABLE_MINTS, WSOL } from "./lib/dexes.ts";
 import type {
   ExitReason,
   MintEnrichment,
@@ -333,8 +333,38 @@ async function main() {
 
       const series = pricesByMint.get(mint) ?? [];
       const poolTime = Date.parse(pool.capturedAt);
-      const entryIdx = series.findIndex((s) => Date.parse(s.takenAt) > poolTime);
+      let entryIdx = series.findIndex((s) => Date.parse(s.takenAt) > poolTime);
       if (entryIdx < 0 || entryIdx >= series.length - 1) continue;
+
+      // WSOL quote filter: check that price snaps are WSOL-quoted.
+      if (strat.requireWsolQuote) {
+        // Require quoteMint to be present AND equal to WSOL. Snaps without
+        // quoteMint are ambiguous — skip them.
+        const qm = series[entryIdx]?.quoteMint;
+        if (qm !== WSOL) continue;
+      }
+
+      // Momentum confirmation: require price to INCREASE by confirmationPct
+      // within confirmationSnaps after the pool event, then enter at the
+      // confirmation snap. Only upward movement counts — a drop means the
+      // token is already dumping.
+      if (strat.confirmationSnaps && strat.confirmationPct) {
+        const basePrice = series[entryIdx]!.priceQuotePerBase;
+        if (basePrice <= 0) continue;
+        let confirmed = false;
+        for (let j = 1; j <= strat.confirmationSnaps; j++) {
+          const ci = entryIdx + j;
+          if (ci >= series.length) break;
+          const px = series[ci]!.priceQuotePerBase;
+          if (px <= 0) continue;
+          if (px / basePrice - 1 >= strat.confirmationPct) {
+            entryIdx = ci;
+            confirmed = true;
+            break;
+          }
+        }
+        if (!confirmed) continue;
+      }
 
       // Require a minimum price series length — fewer than 3 remaining snaps
       // means we can't meaningfully test any exit signal.
@@ -350,6 +380,10 @@ async function main() {
       if (entrySnap.quoteReserve > 0 && entrySnap.quoteReserve < 10) continue;
       let size = strat.sizeSol(pool);
       if (positionFloor > 0) size = Math.max(size, positionFloor);
+      // Cap position at 0.5% of reserves to limit slippage on thin pools.
+      if (entrySnap.quoteReserve > 0) {
+        size = Math.min(size, Math.max(0.02, entrySnap.quoteReserve * 0.005));
+      }
 
       // Slippage on entry: priceImpact applied to entryPrice.
       const slippage =

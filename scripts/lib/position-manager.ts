@@ -42,12 +42,15 @@ export class PositionManager {
    * Process a price snapshot: evaluate exit signals for matching positions.
    * Returns any exit TradePlans that should be dispatched to TxEngine.
    */
-  onPriceSnap(snap: PriceSnap): TradePlan[] {
+  onPriceSnap(snap: PriceSnap, prevSnaps: PriceSnap[] = []): TradePlan[] {
     const plans: TradePlan[] = [];
 
     for (const pos of this.positions.values()) {
       if (pos.mint !== snap.mint) continue;
       if (pos.state !== "open") continue;
+
+      // Skip positions without a valid entry price yet (waiting for first snap)
+      if (pos.entryPrice <= 0) continue;
 
       // Look up strategy exit config
       const strat = this.strategyMap.get(pos.strategyId);
@@ -58,10 +61,12 @@ export class PositionManager {
         pos.peakPrice = snap.priceQuotePerBase;
       }
 
-      // Convert LivePosition to Position-like for evaluateExit
-      const decision = evaluateExit(pos, snap, [], exitCfg);
+      // Evaluate exit signals with price history
+      const decision = evaluateExit(pos, snap, prevSnaps, exitCfg);
 
-      // Hard upper bound holdSec check
+      // Hard upper bound holdSec check (redundant with X3 inside evaluateExit,
+      // but kept as safety net for edge cases where evaluateExit returns NoExit
+      // due to ordering — e.g. a stop fires before time, but the stop is disabled)
       if (!decision.exit && exitCfg.holdSec !== undefined) {
         const elapsed = (new Date(snap.takenAt).getTime() - new Date(pos.entryAt).getTime()) / 1000;
         if (elapsed >= exitCfg.holdSec) {

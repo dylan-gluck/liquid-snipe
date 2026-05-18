@@ -168,11 +168,14 @@ export function insertPosition(
     sizeSol: number;
     openedAt: string;
     traceId?: string;
+    dexKey?: string;
+    baselineQuoteReserve?: number;
+    tokenAmount?: number;
   },
 ): void {
   db.query(
-    `INSERT INTO positions(id, strategy_id, mint, pool, entry_sig, entry_slot, entry_price, size_sol, peak_price, realised_frac, realised_sol, state, opened_at, trace_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 'open', ?, ?)`,
+    `INSERT INTO positions(id, strategy_id, mint, pool, entry_sig, entry_slot, entry_price, size_sol, peak_price, realised_frac, realised_sol, state, opened_at, trace_id, dex_key, baseline_quote_reserve, token_amount)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 'open', ?, ?, ?, ?, ?)`,
   ).run(
     p.id,
     p.strategyId,
@@ -185,6 +188,9 @@ export function insertPosition(
     p.entryPrice,
     p.openedAt,
     p.traceId ?? null,
+    p.dexKey ?? "",
+    p.baselineQuoteReserve ?? 0,
+    p.tokenAmount ?? 0,
   );
 }
 

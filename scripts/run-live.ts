@@ -5,6 +5,10 @@
  * Loads config, opens DB + RPC pool + Detection bus + Safety + Decision +
  * TxEngine + Position manager + Risk guard + Metrics + Kill-switch.
  *
+ * Supports S8-style confirmation strategies: pool events that match a
+ * confirmation strategy are held in the ConfirmationTracker until upward
+ * price momentum is observed, then entered with reserve-capped sizing.
+ *
  * Usage:
  *   bun scripts/run-live.ts --mode shadow   # Gate 1: no real txs
  *   bun scripts/run-live.ts --mode live      # Gate 2: real execution
@@ -13,13 +17,14 @@
 
 import { address, type Signature } from "@solana/kit";
 import { loadConfig, resetConfigCache } from "./lib/config.ts";
-import { openDb, runMigrations, closeDb, insertPoolEvent } from "./lib/db.ts";
+import { openDb, runMigrations, closeDb, insertPoolEvent, insertPosition } from "./lib/db.ts";
 import { log, traceId } from "./lib/logger.ts";
 import {
   startMetricsServer,
   stopMetricsServer,
   capturedEvents,
   openPositions as openPositionsGauge,
+  createGauge,
 } from "./lib/metrics.ts";
 import { RpcPool } from "./lib/rpc-pool.ts";
 import { laserStream } from "./lib/laserstream.ts";
@@ -38,7 +43,9 @@ import { DEXES, STABLE_MINTS } from "./lib/dexes.ts";
 import { findMatchedEvent } from "./lib/liquidity.ts";
 import { computeLiquidityKit, type KitTxLike } from "./lib/helius-liquidity.ts";
 import { makeHelius } from "./lib/helius.ts";
-import type { PoolEvent } from "./lib/types.ts";
+import { strategiesFromConfig } from "./lib/signals.ts";
+import { ConfirmationTracker } from "./lib/confirmation-tracker.ts";
+import type { PoolEvent, PriceSnap, LivePosition } from "./lib/types.ts";
 
 // ─── Args ──────────────────────────────────────────────────────────
 
@@ -64,6 +71,14 @@ const db = openDb(config.database.path);
 runMigrations(db);
 
 log.info("runtime starting", { mode, configPath: configPath ?? "default" });
+
+// ── Gate: live mode requires funded wallets ─────────────────────────
+if (mode === "live" && config.wallet.keypairPaths.length === 0) {
+  log.fatal(
+    "FATAL: --mode live requires at least one wallet keypair. Set wallet.keypairPaths in config.",
+  );
+  process.exit(1);
+}
 
 // Metrics
 if (config.metrics.enabled) {
@@ -113,6 +128,16 @@ killSwitch.startHttpEndpoint(config.metrics.port + 1); // 9091
 // Audit
 const audit = new AuditLog(config);
 
+// Confirmation Tracker + Strategy lookup
+const confirmationTracker = new ConfirmationTracker();
+const builtStrategies = strategiesFromConfig(config.strategies);
+const strategyById = new Map(builtStrategies.map((s) => [s.id, s]));
+
+const pendingConfirmGauge = createGauge(
+  "pending_confirmations",
+  "Pool events awaiting momentum confirmation",
+);
+
 log.info("all services initialized", { mode });
 
 // ─── Watchdog ──────────────────────────────────────────────────────
@@ -140,6 +165,9 @@ function recordCrash(service: string): boolean {
 }
 
 // ─── WS event stream (from Helius) ────────────────────────────────
+
+/** Stagger delay between DEX WS subscriptions to avoid 429 bursts. */
+const WS_STAGGER_MS = 1500;
 
 async function* wsEventStream(signal: AbortSignal): AsyncGenerator<PoolEvent> {
   const helius = makeHelius();
@@ -256,11 +284,17 @@ async function* wsEventStream(signal: AbortSignal): AsyncGenerator<PoolEvent> {
     }
   };
 
-  // Start all DEX streams
-  for (const dex of DEXES) {
+  // Start DEX streams with stagger to avoid 429 burst on startup
+  for (let i = 0; i < DEXES.length; i++) {
+    const dex = DEXES[i]!;
+    if (i > 0) {
+      await new Promise((r) => setTimeout(r, WS_STAGGER_MS));
+      if (signal.aborted) return;
+    }
     runDex(dex).catch((e) => {
       log.error("ws dex stream fatal", { dex: dex.key, error: String(e) });
     });
+    log.info("ws subscribed", { dex: dex.key, index: i + 1, total: DEXES.length });
   }
 
   // Yield events from queue
@@ -297,6 +331,82 @@ function extractLog(notif: unknown): { value: LogValue; slot: number } | null {
     },
     slot: typeof slot === "bigint" ? Number(slot) : (slot ?? 0),
   };
+}
+
+// ─── Helper: open position from decision ───────────────────────────
+
+const GAS_PER_SIDE = 0.0005;
+
+function openPositionFromDecision(
+  event: PoolEvent,
+  plan: { attemptId: string; strategyId: string; sizeSol: number; traceId?: string; mint: string },
+  tid: string,
+  entryPrice: number,
+  quoteReserve: number,
+): LivePosition | null {
+  const mint = event.tokens.find((t) => !STABLE_MINTS.has(t));
+  if (!mint) return null;
+
+  // Compute token amount from entry price
+  const tokens = entryPrice > 0 ? (plan.sizeSol - GAS_PER_SIDE) / entryPrice : 0;
+  if (entryPrice > 0 && (!Number.isFinite(tokens) || tokens <= 0)) {
+    log.warn("position rejected: bad token amount", {
+      mint: mint.slice(0, 8),
+      entryPrice,
+      size: plan.sizeSol,
+    });
+    return null;
+  }
+
+  const now = new Date().toISOString();
+  const pos: LivePosition = {
+    id: plan.attemptId,
+    strategyId: plan.strategyId,
+    mint,
+    pool: event.txSignature,
+    state: "open",
+    openedAt: now,
+    closedAt: null,
+    closeReason: null,
+    closeSig: null,
+    traceId: tid,
+    poolSignature: event.txSignature,
+    dexKey: event.dexKey,
+    entrySlot: event.slot,
+    entryAt: now,
+    entryPrice,
+    baselineQuoteReserve: quoteReserve,
+    size: plan.sizeSol,
+    tokenAmount: tokens,
+    peakPrice: entryPrice,
+    realisedFrac: 0,
+    realisedSol: 0,
+  };
+
+  positionManager.addPosition(pos);
+  openPositionsGauge.set(positionManager.positions.size);
+
+  // Persist to DB
+  insertPosition(db, {
+    id: pos.id,
+    strategyId: pos.strategyId,
+    mint: pos.mint,
+    pool: pos.pool,
+    entrySig: null,
+    entrySlot: pos.entrySlot,
+    entryPrice: pos.entryPrice,
+    sizeSol: pos.size,
+    openedAt: pos.openedAt,
+    traceId: tid,
+    dexKey: pos.dexKey,
+    baselineQuoteReserve: pos.baselineQuoteReserve,
+    tokenAmount: pos.tokenAmount,
+  });
+
+  // Subscribe price feed for this position's pool
+  priceFeed.subscribe(mint, event.txSignature, event.dexKey, event.programAccounts);
+
+  return pos;
 }
 
 // ─── Main pipeline ─────────────────────────────────────────────────
@@ -349,7 +459,7 @@ async function mainLoop() {
       audit.logDetection(tid, event);
 
       // 1b. Subscribe price feed for ALL detected pools (not just fired ones).
-      //     Gives comprehensive price data for backtesting.
+      //     Gives comprehensive price data for backtesting + confirmation tracking.
       if (event.solValue >= lowestMinSol && event.programAccounts.length > 0) {
         const mint = event.tokens.find((t) => !STABLE_MINTS.has(t));
         if (mint) {
@@ -409,7 +519,17 @@ async function mainLoop() {
           mode,
         });
 
-        // 4. Risk check
+        // 3b. Check if this strategy requires confirmation
+        const strat = strategyById.get(decision.strategyId);
+        if (strat && ConfirmationTracker.needsConfirmation(strat)) {
+          // Route to confirmation tracker — don't enter yet
+          const mint = decision.plan.mint;
+          confirmationTracker.addPending(mint, event, decision.plan, strat);
+          pendingConfirmGauge.set(confirmationTracker.pendingCount);
+          continue;
+        }
+
+        // 4. Risk check (immediate-entry strategies)
         const riskCheck = riskGuard.preTrade(
           decision.strategyId,
           decision.plan.sizeSol,
@@ -423,7 +543,7 @@ async function mainLoop() {
           continue;
         }
 
-        // 5. Execute
+        // 5. Execute (immediate-entry strategies)
         const keypair = await walletPool.getNextKeypair(connection, decision.strategyId);
         if (!keypair) {
           log.warn("no available wallet for trade", { strategyId: decision.strategyId });
@@ -442,41 +562,10 @@ async function mainLoop() {
           attempt.status === "submitted" ||
           attempt.status === "confirmed"
         ) {
-          // Open position
-          const mint = event.tokens.find(
-            (t) => !new Set(["So11111111111111111111111111111111111111112"]).has(t),
-          );
-          if (mint) {
-            const pos = {
-              id: decision.plan.attemptId,
-              strategyId: decision.strategyId,
-              mint,
-              pool: event.txSignature,
-              state: "open" as const,
-              openedAt: new Date().toISOString(),
-              closedAt: null,
-              closeReason: null,
-              closeSig: null,
-              traceId: tid,
-              // Position fields
-              poolSignature: event.txSignature,
-              dexKey: event.dexKey,
-              entrySlot: event.slot,
-              entryAt: new Date().toISOString(),
-              entryPrice: 0, // filled on first price snap
-              baselineQuoteReserve: 0,
-              size: decision.plan.sizeSol,
-              tokenAmount: 0,
-              peakPrice: 0,
-              realisedFrac: 0,
-              realisedSol: 0,
-            };
-            positionManager.addPosition(pos);
-            openPositionsGauge.set(positionManager.positions.size);
-
-            // Subscribe price feed for this position's pool
-            priceFeed.subscribe(mint, event.txSignature, event.dexKey, event.programAccounts);
-          }
+          // For immediate-entry strategies, we don't have a price yet.
+          // Use a placeholder — the first price snap will set entryPrice.
+          // This is only for S1-S7 which are all disabled in the profitable config.
+          openPositionFromDecision(event, decision.plan, tid, 0, 0);
         }
       }
     } catch (err) {
@@ -486,19 +575,109 @@ async function mainLoop() {
   }
 }
 
-// ─── Price feed → exit loop ────────────────────────────────────────
+// ─── Price feed → confirmation + exit loop ─────────────────────────
 
 async function exitLoop() {
+  /** Per-mint snap history for prevSnaps in evaluateExit. */
+  const snapHistory = new Map<string, PriceSnap[]>();
+  const MAX_SNAP_HISTORY = 32;
+
   for await (const snap of priceFeed.snapshots()) {
     if (controller.signal.aborted) break;
     if (killSwitch.isHalted()) continue;
 
     try {
-      const exitPlans = positionManager.onPriceSnap(snap);
-      for (const plan of exitPlans) {
-        const keypair = await walletPool.getNextKeypair(connection);
+      // ── Phase 1: Process pending confirmations ──────────────────
+      const confirmed = confirmationTracker.onPriceSnap(snap);
+      pendingConfirmGauge.set(confirmationTracker.pendingCount);
+
+      for (const entry of confirmed) {
+        const tid = entry.plan.traceId || traceId();
+
+        // Risk check for confirmed entry
+        const riskCheck = riskGuard.preTrade(
+          entry.plan.strategyId,
+          entry.plan.sizeSol,
+          rpcPool.healthy(),
+        );
+        if (!riskCheck.allowed) {
+          log.warn("risk guard blocked confirmed entry", {
+            strategyId: entry.plan.strategyId,
+            reason: riskCheck.reason,
+          });
+          continue;
+        }
+
+        // Execute
+        const keypair = await walletPool.getNextKeypair(connection, entry.plan.strategyId);
         if (!keypair) {
-          log.warn("no wallet for exit");
+          log.warn("no wallet for confirmed entry", { strategyId: entry.plan.strategyId });
+          continue;
+        }
+
+        const attempt = await txEngine.submit(entry.plan, keypair, connection, mode);
+        audit.logTxAttempt(tid, attempt);
+
+        const simFailed = attempt.status === "failed";
+        riskGuard.postTrade(0, simFailed);
+
+        if (
+          attempt.status === "shadow" ||
+          attempt.status === "submitted" ||
+          attempt.status === "confirmed"
+        ) {
+          const pos = openPositionFromDecision(
+            entry.event,
+            entry.plan,
+            tid,
+            entry.entryPrice,
+            entry.quoteReserve,
+          );
+          if (pos) {
+            log.info("position opened (confirmed)", {
+              mint: pos.mint.slice(0, 8),
+              dex: pos.dexKey,
+              entryPrice: entry.entryPrice.toExponential(3),
+              size: `${pos.size.toFixed(4)} SOL`,
+              snaps: entry.snapCount,
+              strategy: pos.strategyId,
+            });
+          }
+        }
+      }
+
+      // Periodically evict seen mints to bound memory
+      confirmationTracker.evictSeen();
+
+      // ── Phase 2: Process exits for open positions ───────────────
+
+      // Accumulate snap history
+      const history = snapHistory.get(snap.mint);
+      if (history) {
+        history.push(snap);
+        if (history.length > MAX_SNAP_HISTORY) history.shift();
+      } else {
+        snapHistory.set(snap.mint, [snap]);
+      }
+
+      // Update entryPrice for positions that were opened with price=0
+      // (immediate-entry strategies where we didn't have a price yet)
+      for (const pos of positionManager.positions.values()) {
+        if (pos.mint === snap.mint && pos.state === "open" && pos.entryPrice === 0) {
+          pos.entryPrice = snap.priceQuotePerBase;
+          pos.peakPrice = snap.priceQuotePerBase;
+          pos.baselineQuoteReserve = snap.quoteReserve;
+          // Recalculate token amount now that we have a price
+          const tokens = pos.entryPrice > 0 ? (pos.size - GAS_PER_SIDE) / pos.entryPrice : 0;
+          if (tokens > 0) pos.tokenAmount = tokens;
+        }
+      }
+
+      const exitPlans = positionManager.onPriceSnap(snap, snapHistory.get(snap.mint) ?? []);
+      for (const plan of exitPlans) {
+        const keypair = await walletPool.getNextKeypair(connection, plan.strategyId);
+        if (!keypair) {
+          log.warn("no wallet for exit", { strategyId: plan.strategyId });
           continue;
         }
 
@@ -512,6 +691,16 @@ async function exitLoop() {
             attempt.sig,
           );
           openPositionsGauge.set(positionManager.positions.size);
+        }
+      }
+
+      // Evict snap history for mints with no open position or pending confirmation
+      if (snapHistory.size > 500) {
+        for (const [mint] of snapHistory) {
+          const hasPosition = [...positionManager.positions.values()].some(
+            (p) => p.mint === mint && p.state === "open",
+          );
+          if (!hasPosition) snapHistory.delete(mint);
         }
       }
     } catch (err) {
@@ -550,6 +739,9 @@ process.on("SIGTERM", () => shutdown("SIGTERM"));
 log.info("runtime started", {
   mode,
   strategies: config.strategies.filter((s) => s.enabled).map((s) => s.id),
+  confirmationStrategies: builtStrategies
+    .filter((s) => s.enabled !== false && ConfirmationTracker.needsConfirmation(s))
+    .map((s) => s.id),
   wallets: walletPool.size(),
   rpcProviders: config.rpc.httpUrls.length,
   grpc: Boolean(config.rpc.grpcUrl),

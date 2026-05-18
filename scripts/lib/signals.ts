@@ -628,6 +628,9 @@ export function strategiesFromConfig(configs: StrategyConfig[]): Strategy[] {
       maxFeeLamports: cfg.maxFeeLamports,
       maxSimultaneousPositions: cfg.maxSimultaneousPositions,
       enabled: cfg.enabled,
+      confirmationSnaps: cfg.confirmationSnaps,
+      confirmationPct: cfg.confirmationPct,
+      requireWsolQuote: cfg.requireWsolQuote,
     };
   });
 }

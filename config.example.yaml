@@ -176,6 +176,30 @@ strategies:
       stopPct: -0.25
       drainPct: 0.3
       decayN: 999
+
+  # S8: confirmed moonshot — the data-driven edge.
+  # Waits for price movement confirmation (>1% upward in ≤3 snaps) before entering.
+  # 100% sell at +25% TP, 10min timeout. WSOL pairs only. Tiny positions.
+  # Backtest: 25 trades, 72% win rate, +0.17 SOL net. Only profitable strategy.
+  - id: "S8-confirmed-moon"
+    enabled: true
+    minSol: 0.5
+    allowedDexes:
+      ["meteora-damm-v2", "meteora-dlmm", "pumpfun", "pumpswap", "raydium-clmm", "orca-whirlpool"]
+    requireMintSanity: false
+    requireGraduation: false
+    sizeSol: 0.1
+    maxSlippageBps: 300
+    maxFeeLamports: 50000
+    maxSimultaneousPositions: 10
+    confirmationSnaps: 3
+    confirmationPct: 0.01
+    requireWsolQuote: true
+    exit:
+      ladderRungs:
+        - { profit: 0.25, sell: 1.0 }
+      holdSec: 600
+      decayN: 999
 risk:
   dailyMaxLossSol: 5
   maxSimFailures: 3

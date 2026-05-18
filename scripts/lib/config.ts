@@ -53,6 +53,12 @@ const StrategyConfigSchema = z.object({
   maxFeeLamports: z.number().int().default(100_000),
   maxSimultaneousPositions: z.number().int().default(3),
   exit: ExitConfigSchema.default({}),
+  /** Wait N price snaps for upward momentum before entering. */
+  confirmationSnaps: z.number().int().optional(),
+  /** Min upward price change fraction to confirm entry (e.g. 0.01 = 1%). */
+  confirmationPct: z.number().optional(),
+  /** Only enter positions whose quote mint is WSOL. */
+  requireWsolQuote: z.boolean().optional(),
 });
 
 const RiskConfigSchema = z.object({

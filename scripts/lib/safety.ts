@@ -68,11 +68,15 @@ export class SafetyChecker {
   private readonly mintCache = new Map<string, CacheEntry>();
   private readonly logger = log.child({ component: "safety" });
   private readonly blocklist: Set<string>;
+  /** When false, checkMint is skipped — saves RPC + unblocks meme-coin strategies. */
+  private readonly requireMintSanity: boolean;
 
   constructor(connection: Connection, config: AppConfig) {
     this.conn = connection;
     this.config = config;
     this.blocklist = loadBlocklist();
+    // Only enforce checkMint if at least one enabled strategy requires it.
+    this.requireMintSanity = config.strategies.some((s) => s.enabled && s.requireMintSanity);
   }
 
   async evaluate(pool: PoolEvent): Promise<SafetyVerdict> {
@@ -102,26 +106,33 @@ export class SafetyChecker {
       };
     }
 
-    // ── Phase 2: RPC checks that share data (mint + LP burn + honeypot) ──
-    // checkPoolDepth removed — already handled by per-strategy E2 size gate.
-    // checkMintAuthority removed — redundant with checkMint.
-    // Deployer RPC history separated from blocklist (runs in parallel).
-    const checks = await Promise.allSettled([
-      this.withTimeout("checkMint", () => this.checkMint(baseMint)),
-      this.withTimeout("checkLpBurn", () => this.checkLpBurn(pool)),
-      this.withTimeout("checkHoneypot", () => this.checkHoneypot(baseMint)),
-      this.withTimeout("checkDeployer", () => this.checkDeployerHistory(pool)),
-    ]);
+    // ── Phase 2: RPC checks (mint + LP burn + honeypot + deployer) ──
+    // checkMint only when at least one enabled strategy requires mint sanity.
+    // Meme-coin strategies (S8) set requireMintSanity=false; running checkMint
+    // would reject all pumpfun/pumpswap tokens and waste RPC budget.
+    const rpcOps: Array<Promise<CheckResult>> = [];
+    const rpcNames: string[] = [];
+    if (this.requireMintSanity) {
+      rpcOps.push(this.withTimeout("checkMint", () => this.checkMint(baseMint)));
+      rpcNames.push("checkMint");
+    }
+    rpcOps.push(this.withTimeout("checkLpBurn", () => this.checkLpBurn(pool)));
+    rpcNames.push("checkLpBurn");
+    rpcOps.push(this.withTimeout("checkHoneypot", () => this.checkHoneypot(baseMint)));
+    rpcNames.push("checkHoneypot");
+    rpcOps.push(this.withTimeout("checkDeployer", () => this.checkDeployerHistory(pool)));
+    rpcNames.push("checkDeployer");
 
-    const names = ["checkMint", "checkLpBurn", "checkHoneypot", "checkDeployer"];
+    const settled = await Promise.allSettled(rpcOps);
+
     const results: CheckResult[] = [deployerCheck];
-    for (let i = 0; i < checks.length; i++) {
-      const r = checks[i]!;
+    for (let i = 0; i < settled.length; i++) {
+      const r = settled[i]!;
       if (r.status === "fulfilled") {
         results.push(r.value);
       } else {
         results.push({
-          name: names[i]!,
+          name: rpcNames[i]!,
           pass: false,
           reason: `rejected: ${String(r.reason)}`,
           durationMs: CHECK_TIMEOUT_MS,

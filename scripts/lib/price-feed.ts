@@ -151,8 +151,10 @@ export class PriceFeed {
    * quote (WSOL/USDC/USDT) SPL token vaults.
    */
   private async resolveVaults(sub: PoolSubscription): Promise<void> {
-    sub.resolved = true;
-    if (sub.candidates.length === 0) return;
+    if (sub.candidates.length === 0) {
+      sub.resolved = true;
+      return;
+    }
 
     let infos;
     try {
@@ -167,15 +169,33 @@ export class PriceFeed {
       return;
     }
 
+    sub.resolved = true;
+
+    // Two-pass: first look for WSOL specifically (preferred quote for meme coins),
+    // then fall back to any stable. This prevents USDC token accounts in
+    // pumpfun/pumpswap program accounts from being picked over WSOL vaults.
     for (let i = 0; i < infos.value.length; i++) {
       const info = infos.value[i];
       if (!info || !isParsedTokenAccount(info)) continue;
       const m = info.data.parsed.info.mint;
       if (m === sub.mint && !sub.baseVault) {
         sub.baseVault = sub.candidates[i]!;
-      } else if (STABLE_MINTS.has(m) && !sub.quoteVault) {
+      } else if (m === WSOL && !sub.quoteVault) {
         sub.quoteVault = sub.candidates[i]!;
-        sub.quoteMint = m;
+        sub.quoteMint = WSOL;
+      }
+    }
+    // Fallback: if no WSOL vault found, accept any stable
+    if (!sub.quoteVault) {
+      for (let i = 0; i < infos.value.length; i++) {
+        const info = infos.value[i];
+        if (!info || !isParsedTokenAccount(info)) continue;
+        const m = info.data.parsed.info.mint;
+        if (STABLE_MINTS.has(m) && m !== sub.mint) {
+          sub.quoteVault = sub.candidates[i]!;
+          sub.quoteMint = m;
+          break;
+        }
       }
     }
 
@@ -205,10 +225,12 @@ export class PriceFeed {
 
     const entries = Array.from(this.subs.values());
 
-    // Resolve vaults for any unresolved subscriptions (one at a time to limit RPC)
+    // Resolve vaults for unresolved subscriptions — max 2 per poll to limit RPC pressure
+    let resolved = 0;
     for (const sub of entries) {
-      if (!sub.resolved) {
+      if (!sub.resolved && resolved < 2) {
         await this.resolveVaults(sub);
+        resolved++;
       }
     }
 

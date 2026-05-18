@@ -133,6 +133,17 @@ const confirmationTracker = new ConfirmationTracker();
 const builtStrategies = strategiesFromConfig(config.strategies);
 const strategyById = new Map(builtStrategies.map((s) => [s.id, s]));
 
+// Pre-compute the set of DEX keys any enabled strategy cares about.
+// WS streams and price-feed subs are restricted to these dexes to avoid
+// wasting the free-tier RPC budget on events we'll never trade.
+const enabledDexKeys = new Set<string>();
+for (const strat of builtStrategies) {
+  if (strat.enabled === false) continue;
+  if (strat.entry.allowedDexes) {
+    for (const d of strat.entry.allowedDexes) enabledDexKeys.add(d);
+  }
+}
+
 const pendingConfirmGauge = createGauge(
   "pending_confirmations",
   "Pool events awaiting momentum confirmation",
@@ -285,8 +296,9 @@ async function* wsEventStream(signal: AbortSignal): AsyncGenerator<PoolEvent> {
   };
 
   // Start DEX streams with stagger to avoid 429 burst on startup
-  for (let i = 0; i < DEXES.length; i++) {
-    const dex = DEXES[i]!;
+  const eligibleDexes = DEXES.filter((d) => enabledDexKeys.has(d.key));
+  for (let i = 0; i < eligibleDexes.length; i++) {
+    const dex = eligibleDexes[i]!;
     if (i > 0) {
       await new Promise((r) => setTimeout(r, WS_STAGGER_MS));
       if (signal.aborted) return;
@@ -294,7 +306,7 @@ async function* wsEventStream(signal: AbortSignal): AsyncGenerator<PoolEvent> {
     runDex(dex).catch((e) => {
       log.error("ws dex stream fatal", { dex: dex.key, error: String(e) });
     });
-    log.info("ws subscribed", { dex: dex.key, index: i + 1, total: DEXES.length });
+    log.info("ws subscribed", { dex: dex.key, index: i + 1, total: eligibleDexes.length });
   }
 
   // Yield events from queue
@@ -422,7 +434,7 @@ async function mainLoop() {
     grpcEvents = laserStream({
       grpcUrl: config.rpc.grpcUrl,
       grpcToken: config.rpc.grpcToken,
-      programIds: DEXES.map((d) => d.programId),
+      programIds: DEXES.filter((d) => enabledDexKeys.has(d.key)).map((d) => d.programId),
       signal: controller.signal,
     });
   }
@@ -460,7 +472,11 @@ async function mainLoop() {
 
       // 1b. Subscribe price feed for ALL detected pools (not just fired ones).
       //     Gives comprehensive price data for backtesting + confirmation tracking.
-      if (event.solValue >= lowestMinSol && event.programAccounts.length > 0) {
+      if (
+        event.solValue >= lowestMinSol &&
+        event.programAccounts.length > 0 &&
+        enabledDexKeys.has(event.dexKey)
+      ) {
         const mint = event.tokens.find((t) => !STABLE_MINTS.has(t));
         if (mint) {
           priceFeed.subscribe(mint, event.txSignature, event.dexKey, event.programAccounts);
@@ -470,14 +486,17 @@ async function mainLoop() {
       // 2. Pre-filter: skip expensive safety for pools below ALL strategies' minSol.
       //    The per-strategy E2 size gate already rejects these, so safety would be wasted RPC budget.
       let safetyResult: Awaited<ReturnType<typeof safetyChecker.evaluate>>;
-      if (event.solValue < lowestMinSol) {
+      if (event.solValue < lowestMinSol || !enabledDexKeys.has(event.dexKey)) {
+        const reason = !enabledDexKeys.has(event.dexKey)
+          ? `dex=${event.dexKey} not in enabled strategies`
+          : `${event.solValue.toFixed(2)} SOL < ${lowestMinSol} global min`;
         safetyResult = {
           pass: false,
           checks: [
             {
               name: "pre-filter",
               pass: false,
-              reason: `${event.solValue.toFixed(2)} SOL < ${lowestMinSol} global min`,
+              reason,
               durationMs: 0,
             },
           ],
@@ -648,6 +667,7 @@ async function exitLoop() {
 
       // Periodically evict seen mints to bound memory
       confirmationTracker.evictSeen();
+      confirmationTracker.expireStale();
 
       // ── Phase 2: Process exits for open positions ───────────────
 

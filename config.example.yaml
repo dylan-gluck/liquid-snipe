@@ -40,7 +40,7 @@ strategies:
       decayN: 5
 
   - id: "S2-meteora-dlmm-size"
-    enabled: true
+    enabled: false
     minSol: 25
     allowedTypes: ["INIT", "DEPOSIT"]
     allowedDexes: ["meteora-dlmm", "meteora-damm-v2"]
@@ -60,7 +60,7 @@ strategies:
       drainPct: 0.5
       decayN: 5
   - id: "S3-raydium-fresh-pool"
-    enabled: true
+    enabled: false
     minSol: 5
     allowedTypes: ["INIT"]
     allowedDexes: ["raydium-clmm"]
@@ -80,7 +80,7 @@ strategies:
       drainPct: 0.5
       decayN: 5
   - id: "S4-tiered-multidex"
-    enabled: true
+    enabled: false
     minSol: 1
     allowedDexes:
       ["meteora-damm-v2", "meteora-dlmm", "raydium-clmm", "orca-whirlpool", "pumpfun", "pumpswap"]
@@ -104,7 +104,7 @@ strategies:
       drainPct: 0.5
       decayN: 12
   - id: "S5-fast-trail"
-    enabled: true
+    enabled: false
     minSol: 0.5
     allowedDexes:
       ["meteora-damm-v2", "meteora-dlmm", "raydium-clmm", "orca-whirlpool", "pumpfun", "pumpswap"]
@@ -127,7 +127,7 @@ strategies:
       drainPct: 0.3
       decayN: 999
   - id: "S6-init-sniper"
-    enabled: true
+    enabled: false
     minSol: 3
     allowedTypes: ["INIT", "CREATE"]
     allowedDexes:
@@ -154,7 +154,7 @@ strategies:
       decayN: 999
 
   - id: "S7-meteora-alpha"
-    enabled: true
+    enabled: false
     minSol: 3
     allowedTypes: ["INIT"]
     allowedDexes: ["meteora-damm-v2"]

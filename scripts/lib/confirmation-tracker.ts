@@ -220,6 +220,21 @@ export class ConfirmationTracker {
     }
   }
 
+  /**
+   * Expire entries that have been pending too long without receiving any price
+   * snaps. Pumpfun bonding-curve tokens often have no WSOL vault, so the price
+   * feed never produces snaps for them. Without a wall-clock timeout these
+   * entries sit in the pending queue forever.
+   */
+  expireStale(maxAgeMs = 30_000): void {
+    const now = Date.now();
+    for (const [_mint, entry] of this.pending) {
+      if (now - entry.addedAt > maxAgeMs) {
+        this.expire(entry, entry.snapsSeen === 0 ? "no_snaps_timeout" : "stale_timeout");
+      }
+    }
+  }
+
   // ─── internal ────────────────────────────────────────────────────
 
   private expire(entry: PendingEntry, outcome: string, lastChange?: number): void {

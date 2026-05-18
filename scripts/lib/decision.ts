@@ -53,6 +53,7 @@ export class DecisionEngine {
     const cfg: EntryConfig = {
       minSol: strat.minSol,
       allowedTypes: strat.allowedTypes as EntryConfig["allowedTypes"],
+      allowedDexes: strat.allowedDexes,
       requireMintSanity: strat.requireMintSanity,
       requireGraduation: strat.requireGraduation,
       maxDeployerPriorLaunches: strat.maxDeployerPriorLaunches,

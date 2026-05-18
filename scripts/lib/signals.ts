@@ -27,6 +27,8 @@ export interface EntryConfig {
   minSol: number;
   /** Required event types; empty = any. */
   allowedTypes?: PoolEvent["eventType"][];
+  /** Required DEX keys; empty/undefined = any. */
+  allowedDexes?: string[];
   /** Require mintAuthority and freezeAuthority to be null. */
   requireMintSanity: boolean;
   /** Require pump.fun MIGRATE source. */
@@ -137,6 +139,14 @@ export function evaluateEntry(
       cfg.allowedTypes.includes(t)
         ? { ok: true, reason: `type=${t}` }
         : { ok: false, reason: `type=${t} not in ${cfg.allowedTypes.join("|")}` },
+    );
+  }
+  if (cfg.allowedDexes && cfg.allowedDexes.length > 0) {
+    const d = ctx.pool.dexKey;
+    checks.push(
+      cfg.allowedDexes.includes(d)
+        ? { ok: true, reason: `dex=${d}` }
+        : { ok: false, reason: `dex=${d} not in ${cfg.allowedDexes.join("|")}` },
     );
   }
   if (cfg.requireMintSanity) checks.push(e3MintSanity(ctx));
@@ -352,7 +362,7 @@ export const STRATEGIES: Strategy[] = [
       requireGraduation: false,
       allowedQuoteMints: QUOTE_WHITELIST,
     },
-    exit: { ...BASE_EXIT, holdSec: 45 * 60 },
+    exit: { ...BASE_EXIT, trailPct: 0.2, holdSec: 30 * 60, decayN: 12 },
     sizeSol: (pool) => {
       if (pool.solValue < 5) return 0.1;
       if (pool.solValue < 25) return 0.5;
@@ -360,11 +370,11 @@ export const STRATEGIES: Strategy[] = [
     },
   },
   {
-    // S5: same entries as S4 but exits tuned for short-window sniping. The
-    // default S1-S4 exits assume a 30-60 min hold; in practice the bot
-    // operates on a 5-10 min snapshot horizon where the larger move
-    // targets never fire. S5's lower thresholds + tight trail give the
-    // strategy a chance to lock in 10-30 % wins.
+    // S5: "pump before dump" — enter early on any pool creation across all
+    // DEXes, ride the initial pump, exit via tight trailing stop.
+    // Grid search findings: decay kills edge (12/25 trades), tight trail (5%)
+    // captures the pump without giving it all back. No ladder — let winners
+    // run; the trail will catch the exit on the way down.
     id: "S5-fast-trail",
     entry: {
       minSol: 0.5,
@@ -373,22 +383,50 @@ export const STRATEGIES: Strategy[] = [
       allowedQuoteMints: QUOTE_WHITELIST,
     },
     exit: {
-      ladderRungs: [
-        { profit: 0.1, sell: 0.5 },
-        { profit: 0.25, sell: 0.25 },
-        { profit: 0.5, sell: 0.25 },
-      ],
-      trailPct: 0.08,
-      holdSec: 5 * 60,
-      stopPct: -0.15,
+      ladderRungs: [],
+      trailPct: 0.05,
+      holdSec: 10 * 60,
+      stopPct: -0.25,
       drainPct: 0.5,
-      decayN: 4,
+      decayN: 999, // OFF — decay destroys edge on volatile tokens
     },
     sizeSol: (pool) => {
       if (pool.solValue < 5) return 0.1;
       if (pool.solValue < 25) return 0.5;
       return 1.0;
     },
+  },
+  {
+    // S6: INIT-only sniper — targets pool creation events across all DEXes.
+    // Data: meteora-damm-v2 INIT was +39.5% avg peak at 67% win rate.
+    // Opens the aperture to capture INIT events on every DEX, with wider
+    // trail and patient hold to let big movers run.
+    id: "S6-init-sniper",
+    entry: {
+      minSol: 3,
+      requireMintSanity: true,
+      requireGraduation: false,
+      allowedTypes: ["INIT", "CREATE"],
+      allowedQuoteMints: QUOTE_WHITELIST,
+    },
+    exit: {
+      ladderRungs: [
+        { profit: 0.5, sell: 0.3 },
+        { profit: 1.0, sell: 0.3 },
+        { profit: 2.0, sell: 0.4 },
+      ],
+      trailPct: 0.1,
+      holdSec: 60 * 60,
+      stopPct: -0.35,
+      drainPct: 0.5,
+      decayN: 999, // OFF
+    },
+    sizeSol: (pool) => {
+      if (pool.solValue < 5) return 0.1;
+      if (pool.solValue < 25) return 0.5;
+      return 1.0;
+    },
+    maxSimultaneousPositions: 5,
   },
 ];
 
@@ -404,6 +442,7 @@ export function strategiesFromConfig(configs: StrategyConfig[]): Strategy[] {
     const entry: EntryConfig = {
       minSol: cfg.minSol,
       allowedTypes: cfg.allowedTypes as EntryConfig["allowedTypes"],
+      allowedDexes: cfg.allowedDexes,
       requireMintSanity: cfg.requireMintSanity,
       requireGraduation: cfg.requireGraduation,
       maxDeployerPriorLaunches: cfg.maxDeployerPriorLaunches,

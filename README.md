@@ -60,13 +60,13 @@ Key sections: `rpc`, `wallet`, `strategies`, `risk`, `jito`, `jupiter`, `killswi
 
 Five built-in strategies (S1–S5), all configurable via YAML:
 
-| ID | Focus | Min SOL | Entry rules |
-|---|---|---|---|
-| S1-pumpfun-grad | Pump.fun graduations | 5 | MIGRATE event, no mint sanity req |
-| S2-meteora-dlmm-size | Large Meteora pools | 25 | INIT/DEPOSIT, E3 mint sanity |
-| S3-raydium-fresh-pool | Fresh INIT events | 5 | INIT only, E3 mint sanity |
-| S4-tiered-multidex | Multi-DEX, tiered sizing | 1 | Any event, E3, tiered by liquidity |
-| S5-fast-trail | Short-window sniping | 0.5 | Any event, E3, tight trail/stops |
+| ID                    | Focus                    | Min SOL | Entry rules                        |
+| --------------------- | ------------------------ | ------- | ---------------------------------- |
+| S1-pumpfun-grad       | Pump.fun graduations     | 5       | MIGRATE event, no mint sanity req  |
+| S2-meteora-dlmm-size  | Large Meteora pools      | 25      | INIT/DEPOSIT, E3 mint sanity       |
+| S3-raydium-fresh-pool | Fresh INIT events        | 5       | INIT only, E3 mint sanity          |
+| S4-tiered-multidex    | Multi-DEX, tiered sizing | 1       | Any event, E3, tiered by liquidity |
+| S5-fast-trail         | Short-window sniping     | 0.5     | Any event, E3, tight trail/stops   |
 
 Entry signals (E1–E7): first-liquidity, size gate, mint sanity, LP burn, graduation, deployer reputation, quote whitelist. Exit signals (X1–X7): ladder take-profit, trailing stop, time stop, hard stop, liquidity drain, insider sell, momentum decay.
 
@@ -159,13 +159,13 @@ config.example.yaml        # Full config with comments
 
 ## Data
 
-| File | Description |
-|---|---|
-| `data/pools.jsonl` | Captured pool events (append-only audit log) |
-| `data/prices.jsonl` | Price snapshots |
-| `data/enrich/*.json` | Mint enrichment (authority, supply, holders) |
-| `data/trades.jsonl` | Backtest trade results |
-| `data/liquid-snipe.db` | SQLite state (positions, tx attempts, risk) |
+| File                   | Description                                  |
+| ---------------------- | -------------------------------------------- |
+| `data/pools.jsonl`     | Captured pool events (append-only audit log) |
+| `data/prices.jsonl`    | Price snapshots                              |
+| `data/enrich/*.json`   | Mint enrichment (authority, supply, holders) |
+| `data/trades.jsonl`    | Backtest trade results                       |
+| `data/liquid-snipe.db` | SQLite state (positions, tx attempts, risk)  |
 
 ## Dependencies
 

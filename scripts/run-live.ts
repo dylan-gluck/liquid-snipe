@@ -145,6 +145,28 @@ async function* wsEventStream(signal: AbortSignal): AsyncGenerator<PoolEvent> {
   const helius = makeHelius();
   const seenSigs = new Set<string>();
 
+  // Throttle getTransaction to avoid 429s on free-tier Helius (10 req/s)
+  const TX_FETCH_MAX = 3;
+  let txFetchInflight = 0;
+  const txFetchQueue: Array<() => void> = [];
+  const acquireTxSlot = (): Promise<void> => {
+    if (txFetchInflight < TX_FETCH_MAX) {
+      txFetchInflight++;
+      return Promise.resolve();
+    }
+    return new Promise<void>((r) =>
+      txFetchQueue.push(() => {
+        txFetchInflight++;
+        r();
+      }),
+    );
+  };
+  const releaseTxSlot = (): void => {
+    txFetchInflight--;
+    const next = txFetchQueue.shift();
+    if (next) next();
+  };
+
   // Simplified: use existing capture-helius logic pattern
   const queue: PoolEvent[] = [];
   let resolve: (() => void) | null = null;
@@ -173,22 +195,27 @@ async function* wsEventStream(signal: AbortSignal): AsyncGenerator<PoolEvent> {
             for (let i = 0; i < 1000; i++) seenSigs.delete(iter.next().value as string);
           }
 
-          // Fetch full tx
+          // Fetch full tx (throttled)
           let tx: KitTxLike | null = null;
-          for (let attempt = 0; attempt < 3 && !tx; attempt++) {
-            try {
-              tx = (await helius.raw.getTransaction(
-                parsed.value.signature as Signature,
-                {
-                  encoding: "jsonParsed",
-                  maxSupportedTransactionVersion: 0,
-                  commitment: "confirmed",
-                } as Parameters<typeof helius.raw.getTransaction>[1],
-              )) as unknown as KitTxLike | null;
-            } catch {
-              // retry
+          await acquireTxSlot();
+          try {
+            for (let attempt = 0; attempt < 3 && !tx; attempt++) {
+              try {
+                tx = (await helius.raw.getTransaction(
+                  parsed.value.signature as Signature,
+                  {
+                    encoding: "jsonParsed",
+                    maxSupportedTransactionVersion: 0,
+                    commitment: "confirmed",
+                  } as Parameters<typeof helius.raw.getTransaction>[1],
+                )) as unknown as KitTxLike | null;
+              } catch {
+                // retry with exponential backoff
+              }
+              if (!tx) await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
             }
-            if (!tx) await new Promise((r) => setTimeout(r, 300));
+          } finally {
+            releaseTxSlot();
           }
           if (!tx) continue;
 
@@ -292,6 +319,13 @@ async function mainLoop() {
 
   const bus = detectionBus({ wsEvents, grpcEvents });
 
+  // Pre-compute the lowest minSol across all enabled strategies.
+  // Pools below this can't fire ANY strategy, so skip expensive safety.
+  const lowestMinSol = config.strategies.reduce(
+    (min, s) => (s.enabled && s.minSol < min ? s.minSol : min),
+    Infinity,
+  );
+
   for await (const event of bus) {
     if (controller.signal.aborted) break;
     if (killSwitch.isHalted()) continue;
@@ -314,8 +348,26 @@ async function mainLoop() {
       capturedEvents.inc();
       audit.logDetection(tid, event);
 
-      // 2. Safety check
-      const safetyResult = await safetyChecker.evaluate(event);
+      // 2. Pre-filter: skip expensive safety for pools below ALL strategies' minSol.
+      //    The per-strategy E2 size gate already rejects these, so safety would be wasted RPC budget.
+      let safetyResult: Awaited<ReturnType<typeof safetyChecker.evaluate>>;
+      if (event.solValue < lowestMinSol) {
+        safetyResult = {
+          pass: false,
+          checks: [
+            {
+              name: "pre-filter",
+              pass: false,
+              reason: `${event.solValue.toFixed(2)} SOL < ${lowestMinSol} global min`,
+              durationMs: 0,
+            },
+          ],
+          totalDurationMs: 0,
+          enrichment: null,
+        };
+      } else {
+        safetyResult = await safetyChecker.evaluate(event);
+      }
       audit.logSafetyCheck(tid, safetyResult);
 
       // 3. Decision
@@ -330,6 +382,23 @@ async function mainLoop() {
         audit.logDecision(tid, decision);
 
         if (!decision.fire || !decision.plan) continue;
+
+        // Log shadow-fire for analysis — captures decisions regardless of wallet/risk availability
+        appendJsonl("data/shadow-fires.jsonl", {
+          ts: new Date().toISOString(),
+          traceId: tid,
+          strategyId: decision.strategyId,
+          mint: decision.plan.mint,
+          dexKey: decision.plan.dexKey,
+          pool: decision.plan.pool,
+          sizeSol: decision.plan.sizeSol,
+          eventType: event.eventType,
+          solValue: event.solValue,
+          signer: event.signer,
+          slot: event.slot,
+          safetyPass: safetyResult.pass,
+          mode,
+        });
 
         // 4. Risk check
         const riskCheck = riskGuard.preTrade(

@@ -96,11 +96,11 @@ strategies:
         - { profit: 0.5, sell: 0.5 }
         - { profit: 1.0, sell: 0.25 }
         - { profit: 2.0, sell: 0.25 }
-      trailPct: 0.25
-      holdSec: 2700
+      trailPct: 0.20
+      holdSec: 1800
       stopPct: -0.30
       drainPct: 0.5
-      decayN: 5
+      decayN: 12
 
   - id: "S5-fast-trail"
     enabled: true
@@ -115,15 +115,36 @@ strategies:
     maxFeeLamports: 75000
     maxSimultaneousPositions: 5
     exit:
-      ladderRungs:
-        - { profit: 0.1, sell: 0.5 }
-        - { profit: 0.25, sell: 0.25 }
-        - { profit: 0.5, sell: 0.25 }
-      trailPct: 0.08
-      holdSec: 300
-      stopPct: -0.15
+      ladderRungs: []
+      trailPct: 0.05
+      holdSec: 600
+      stopPct: -0.25
       drainPct: 0.5
-      decayN: 4
+      decayN: 999
+
+  - id: "S6-init-sniper"
+    enabled: true
+    minSol: 3
+    allowedTypes: ["INIT", "CREATE"]
+    requireMintSanity: true
+    sizeSol: 0.5
+    sizeByLiquidity:
+      - { minSol: 0, size: 0.1 }
+      - { minSol: 5, size: 0.5 }
+      - { minSol: 25, size: 1.0 }
+    maxSlippageBps: 250
+    maxFeeLamports: 100000
+    maxSimultaneousPositions: 5
+    exit:
+      ladderRungs:
+        - { profit: 0.5, sell: 0.3 }
+        - { profit: 1.0, sell: 0.3 }
+        - { profit: 2.0, sell: 0.4 }
+      trailPct: 0.10
+      holdSec: 3600
+      stopPct: -0.35
+      drainPct: 0.5
+      decayN: 999
 
 risk:
   dailyMaxLossSol: 5

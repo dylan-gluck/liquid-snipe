@@ -85,7 +85,11 @@ export const DEXES: DexEntry[] = [
       },
       {
         type: "DEPOSIT",
-        signatures: ["Instruction: AddLiquidity", "Instruction: AddLiquidityByStrategy"],
+        signatures: [
+          "Instruction: AddLiquidity",
+          "Instruction: AddLiquidityByStrategy",
+          "Instruction: AddLiquidityByStrategy2",
+        ],
       },
     ],
   },
@@ -94,7 +98,14 @@ export const DEXES: DexEntry[] = [
     name: "Meteora DAMM v2",
     programId: "cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG",
     events: [
-      { type: "INIT", signatures: ["Instruction: InitializePool", "Instruction: CreatePool"] },
+      {
+        type: "INIT",
+        signatures: [
+          "Instruction: InitializePool",
+          "Instruction: InitializeCustomizablePool",
+          "Instruction: CreatePool",
+        ],
+      },
       { type: "DEPOSIT", signatures: ["Instruction: AddLiquidity"] },
     ],
   },
@@ -115,7 +126,7 @@ export const DEXES: DexEntry[] = [
     name: "PumpSwap AMM",
     programId: "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
     events: [
-      { type: "INIT", signatures: ["Instruction: CreatePool"] },
+      { type: "INIT", signatures: ["Instruction: CreatePool", "create_pool"] },
       { type: "DEPOSIT", signatures: ["Instruction: Deposit"] },
     ],
   },

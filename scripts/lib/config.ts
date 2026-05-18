@@ -41,6 +41,7 @@ const StrategyConfigSchema = z.object({
   enabled: z.boolean().default(true),
   minSol: z.number().default(1),
   allowedTypes: z.array(z.string()).optional(),
+  allowedDexes: z.array(z.string()).optional(),
   requireMintSanity: z.boolean().default(true),
   requireGraduation: z.boolean().default(false),
   maxDeployerPriorLaunches: z.number().int().optional(),

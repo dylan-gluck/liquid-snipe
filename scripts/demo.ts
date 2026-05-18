@@ -261,7 +261,8 @@ function runBacktest(): void {
       const entrySnap = series[idx]!;
       const rest = series.slice(idx + 1);
       const size = strat.sizeSol(pool);
-      const entryPrice = entrySnap.priceQuotePerBase * (1 + Math.min(0.2, size / (entrySnap.quoteReserve + 1e-9)));
+      const entryPrice =
+        entrySnap.priceQuotePerBase * (1 + Math.min(0.2, size / (entrySnap.quoteReserve + 1e-9)));
       const tokenAmount = (size - 0.0005) / entryPrice;
       const pos: Position = {
         strategyId: strat.id,
@@ -299,7 +300,10 @@ function runBacktest(): void {
       }
       if (pos.realisedFrac < 1 - 1e-9) {
         const last = rest[rest.length - 1] ?? entrySnap;
-        const slip = Math.min(0.2, (pos.size * (1 - pos.realisedFrac)) / (last.quoteReserve + 1e-9));
+        const slip = Math.min(
+          0.2,
+          (pos.size * (1 - pos.realisedFrac)) / (last.quoteReserve + 1e-9),
+        );
         const fill = last.priceQuotePerBase * (1 - slip);
         pos.realisedSol += pos.tokenAmount * fill;
         if (exitReason === "end-of-data") exitPrice = fill;

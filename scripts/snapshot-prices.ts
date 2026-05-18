@@ -126,7 +126,13 @@ async function snapPool(
   try {
     infos = await connection.getMultipleParsedAccounts(accounts, { commitment: "confirmed" });
   } catch (e) {
-    console.error(color(useColor, ANSI.red, `[${ts()}] snap ${shortKey(binding.mint)}: ${(e as Error).message}`));
+    console.error(
+      color(
+        useColor,
+        ANSI.red,
+        `[${ts()}] snap ${shortKey(binding.mint)}: ${(e as Error).message}`,
+      ),
+    );
     return;
   }
 

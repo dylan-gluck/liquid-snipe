@@ -15,7 +15,7 @@ Capture path uses the SDK end-to-end:
 // scripts/lib/helius.ts
 import { createHelius } from "helius-sdk";
 const helius = createHelius({
-  apiKey: loadApiKey(),               // from $HELIUS_API_KEY or .env.local
+  apiKey: loadApiKey(), // from $HELIUS_API_KEY or .env.local
   network: "mainnet",
   userAgent: "liquid-snipe/0.2",
 });
@@ -43,38 +43,38 @@ Auth bootstrap (`scripts/helius-signup.ts`) wraps
 
 ## Dataset (real Solana mainnet, 2026-05-14)
 
-| metric | value |
-|---|---|
-| capture window | ~8 min real Helius WS + RPC |
-| whale LP events captured (≥ 10 SOL) | **21** |
-| unique mints | **28** |
-| min / median / max SOL of LP event | 11.0 / 26.4 / **400.6** |
-| price snapshots collected | **222** records (~20 s cadence, watched 19 pools) |
-| mints enriched (authority / supply / holders) | **253** (28 whale mints all enriched) |
-| mints passing E3 mint-sanity (auths null) | **18 of 28** |
+| metric                                        | value                                             |
+| --------------------------------------------- | ------------------------------------------------- |
+| capture window                                | ~8 min real Helius WS + RPC                       |
+| whale LP events captured (≥ 10 SOL)           | **21**                                            |
+| unique mints                                  | **28**                                            |
+| min / median / max SOL of LP event            | 11.0 / 26.4 / **400.6**                           |
+| price snapshots collected                     | **222** records (~20 s cadence, watched 19 pools) |
+| mints enriched (authority / supply / holders) | **253** (28 whale mints all enriched)             |
+| mints passing E3 mint-sanity (auths null)     | **18 of 28**                                      |
 
 Capture breakdown by program/event:
 
-| program | event | count |
-|---|---|---|
-| Raydium AMM v4 | DEPOSIT | 7 |
-| PumpSwap | INIT | 5 |
-| Meteora DAMM v2 | INIT | 4 |
-| Pump.fun | CREATE | 3 |
-| PumpSwap | DEPOSIT | 1 |
-| Meteora DLMM | DEPOSIT | 1 |
+| program         | event   | count |
+| --------------- | ------- | ----- |
+| Raydium AMM v4  | DEPOSIT | 7     |
+| PumpSwap        | INIT    | 5     |
+| Meteora DAMM v2 | INIT    | 4     |
+| Pump.fun        | CREATE  | 3     |
+| PumpSwap        | DEPOSIT | 1     |
+| Meteora DLMM    | DEPOSIT | 1     |
 
 ## Backtest results
 
 Four strategies fired; one (`S1-pumpfun-grad`) skipped because no
 `pumpfun MIGRATE` events occurred in this window.
 
-| strategy | score | n | hit | total PnL | mean ret | worst | drawdown | exits |
-|---|---|---|---|---|---|---|---|---|
-| **`S3-raydium-fresh-pool`** | **0.350** | 1 | 100.0 % | **+0.051 SOL** | **+10.1 %** | +10.1 % | 0.0 % | end-of-data:1 |
-| `S2-meteora-dlmm-size` | 0.078 | 4 | 25.0 % | +0.032 SOL | +0.8 % | −6.2 % | −6.2 % | end-of-data:2, decay:2 |
-| `S5-fast-trail` | 0.063 | 5 | 20.0 % | +0.034 SOL | +0.6 % | −6.2 % | −6.2 % | end-of-data:1, ladder-partial:1, decay:3 |
-| `S4-tiered-multidex` | 0.062 | 5 | 20.0 % | +0.030 SOL | +0.6 % | −6.2 % | −6.2 % | end-of-data:2, decay:3 |
+| strategy                    | score     | n   | hit     | total PnL      | mean ret    | worst   | drawdown | exits                                    |
+| --------------------------- | --------- | --- | ------- | -------------- | ----------- | ------- | -------- | ---------------------------------------- |
+| **`S3-raydium-fresh-pool`** | **0.350** | 1   | 100.0 % | **+0.051 SOL** | **+10.1 %** | +10.1 % | 0.0 %    | end-of-data:1                            |
+| `S2-meteora-dlmm-size`      | 0.078     | 4   | 25.0 %  | +0.032 SOL     | +0.8 %      | −6.2 %  | −6.2 %   | end-of-data:2, decay:2                   |
+| `S5-fast-trail`             | 0.063     | 5   | 20.0 %  | +0.034 SOL     | +0.6 %      | −6.2 %  | −6.2 %   | end-of-data:1, ladder-partial:1, decay:3 |
+| `S4-tiered-multidex`        | 0.062     | 5   | 20.0 %  | +0.030 SOL     | +0.6 %      | −6.2 %  | −6.2 %   | end-of-data:2, decay:3                   |
 
 Score = `0.4·tanh(pnl/2) + 0.3·hit + 0.2·tanh(2·mean) + 0.1·dd`.
 
@@ -89,26 +89,26 @@ captured window it fired exactly once.
 
 **The trade**
 
-| | |
-|---|---|
-| mint | [`a3W4qutoEJA4232T2gwZUfgYJTetr96pU4SJMwppump`](https://solscan.io/token/a3W4qutoEJA4232T2gwZUfgYJTetr96pU4SJMwppump) |
-| program | Meteora DAMM v2 |
-| LP event | INIT, 105.05 SOL initial liquidity |
-| signer | `CQdr…TudY` |
-| capture sig | [`55YSBhXB…`](https://solscan.io/tx/55YSBhXB) (real Solana tx captured via `helius.ws.logsNotifications`) |
-| entry price (next snapshot) | 2.42 × 10⁻⁵ SOL / token |
-| exit price (final snapshot) | 2.66 × 10⁻⁵ SOL / token |
-| exit reason | `end-of-data` (price still climbing at sample window close) |
-| holding period | 4.4 min |
-| simulated position | 0.5 SOL |
-| **simulated PnL** | **+0.051 SOL (+10.1 %)** |
+|                             |                                                                                                                       |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| mint                        | [`a3W4qutoEJA4232T2gwZUfgYJTetr96pU4SJMwppump`](https://solscan.io/token/a3W4qutoEJA4232T2gwZUfgYJTetr96pU4SJMwppump) |
+| program                     | Meteora DAMM v2                                                                                                       |
+| LP event                    | INIT, 105.05 SOL initial liquidity                                                                                    |
+| signer                      | `CQdr…TudY`                                                                                                           |
+| capture sig                 | [`55YSBhXB…`](https://solscan.io/tx/55YSBhXB) (real Solana tx captured via `helius.ws.logsNotifications`)             |
+| entry price (next snapshot) | 2.42 × 10⁻⁵ SOL / token                                                                                               |
+| exit price (final snapshot) | 2.66 × 10⁻⁵ SOL / token                                                                                               |
+| exit reason                 | `end-of-data` (price still climbing at sample window close)                                                           |
+| holding period              | 4.4 min                                                                                                               |
+| simulated position          | 0.5 SOL                                                                                                               |
+| **simulated PnL**           | **+0.051 SOL (+10.1 %)**                                                                                              |
 
 The same mint also caught the +9.6 % S2 trade and the +6.6 % S5
 ladder-partial — three different strategies converged on the same real
 event, which is the strongest internal-consistency check the dataset
 provides.
 
-## Why this is a *working* strategy on real data
+## Why this is a _working_ strategy on real data
 
 1. **Signal really fires.** Out of 21 whale captures, the entry rule
    (INIT ≥ 5 SOL + E3 mint-sanity) selected one pool; the simulated
@@ -119,7 +119,7 @@ provides.
    would have been an open position to manage manually or to extend with
    more snapshot ticks.
 3. **Slippage modelled.** Entry: `+0.5 / 105 ≈ 0.5 %` price impact,
-   gas 0.0005 SOL per side. The +10.1 % return is *after* these costs.
+   gas 0.0005 SOL per side. The +10.1 % return is _after_ these costs.
 4. **Universe-wide positive expectancy.** All four strategies that fired
    produced net-positive PnL across 14 trades. The whale-filtered
    universe (≥ 10 SOL LP events) is materially different from the
@@ -128,19 +128,19 @@ provides.
 
 ## Proof artifacts
 
-| file | description |
-|---|---|
-| `data/pools-combined.jsonl` | 21 captured PoolEvents (≥10 SOL), all via `helius.ws.logsNotifications` + `helius.raw.getTransaction` |
-| `data/prices.jsonl` | 222 PriceSnap records sampled at 20 s intervals via Helius RPC |
-| `data/enrich/*.json` | 253 MintEnrichment records (authority, supply, top-10 holder share) |
-| `data/trades.jsonl` | 15 SimTrade records (entry + exit per strategy per pool that fired) |
-| `scripts/helius-signup.ts` | Programmatic signup via `makeAuthClient().agenticSignup` |
-| `scripts/capture-helius.ts` | Helius-SDK capture (8 program subscriptions, auto-reconnect) |
-| `scripts/lib/helius.ts` | SDK client factory + `.env.local` key loader |
-| `scripts/lib/helius-liquidity.ts` | `@solana/kit` adapter for SOL-flow math (BigInt-safe) |
-| `scripts/lib/signals.ts` | Strategy definitions S1–S5 |
-| `scripts/backtest.ts` | Entry/exit replay with slippage + gas model |
-| `scripts/pick-best.ts` | Composite scoring of strategies from `data/trades.jsonl` |
+| file                              | description                                                                                           |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `data/pools-combined.jsonl`       | 21 captured PoolEvents (≥10 SOL), all via `helius.ws.logsNotifications` + `helius.raw.getTransaction` |
+| `data/prices.jsonl`               | 222 PriceSnap records sampled at 20 s intervals via Helius RPC                                        |
+| `data/enrich/*.json`              | 253 MintEnrichment records (authority, supply, top-10 holder share)                                   |
+| `data/trades.jsonl`               | 15 SimTrade records (entry + exit per strategy per pool that fired)                                   |
+| `scripts/helius-signup.ts`        | Programmatic signup via `makeAuthClient().agenticSignup`                                              |
+| `scripts/capture-helius.ts`       | Helius-SDK capture (8 program subscriptions, auto-reconnect)                                          |
+| `scripts/lib/helius.ts`           | SDK client factory + `.env.local` key loader                                                          |
+| `scripts/lib/helius-liquidity.ts` | `@solana/kit` adapter for SOL-flow math (BigInt-safe)                                                 |
+| `scripts/lib/signals.ts`          | Strategy definitions S1–S5                                                                            |
+| `scripts/backtest.ts`             | Entry/exit replay with slippage + gas model                                                           |
+| `scripts/pick-best.ts`            | Composite scoring of strategies from `data/trades.jsonl`                                              |
 
 ## Reproduce
 

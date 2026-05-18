@@ -119,10 +119,8 @@ async function main() {
     ),
   );
 
-  const stats: Record<
-    string,
-    { seen: number; captured: number; dropped: number; errors: number }
-  > = {};
+  const stats: Record<string, { seen: number; captured: number; dropped: number; errors: number }> =
+    {};
   for (const d of args.selected) stats[d.key] = { seen: 0, captured: 0, dropped: 0, errors: 0 };
 
   const seenSigs = new Set<string>();
@@ -208,9 +206,7 @@ async function main() {
           const tokStr = tokens[0]
             ? color(args.useColor, ANSI.white, `tok=${shortKey(tokens[0])}`)
             : color(args.useColor, ANSI.dim, "tok=?");
-          const signerStr = signer
-            ? color(args.useColor, ANSI.dim, `by=${shortKey(signer)}`)
-            : "";
+          const signerStr = signer ? color(args.useColor, ANSI.dim, `by=${shortKey(signer)}`) : "";
           const sigStr = color(args.useColor, ANSI.dim, `sig=${shortKey(signature)}`);
           console.log(
             `${time}  ${dexLabel} ${typeLabel} ${value}  ${tokStr}  ${signerStr}  ${sigStr}`,
@@ -235,9 +231,7 @@ async function main() {
 
   const shutdown = (signal: string) => {
     const totalCaptured = Object.values(stats).reduce((s, v) => s + v.captured, 0);
-    console.log(
-      `\n[${ts()}] received ${signal}, captured ${totalCaptured} events to ${args.out}`,
-    );
+    console.log(`\n[${ts()}] received ${signal}, captured ${totalCaptured} events to ${args.out}`);
     process.exit(0);
   };
   process.on("SIGINT", () => shutdown("SIGINT"));

@@ -1,6 +1,6 @@
 {
   "name": "liquid-snipe",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Solana trading bot that monitors for new liquidity pools and executes trades",
   "scripts": {
     "lint": "oxlint",
@@ -16,11 +16,22 @@
     "backtest": "bun scripts/backtest.ts",
     "demo": "bun scripts/demo.ts",
     "helius:signup": "bun scripts/helius-signup.ts",
-    "helius:capture": "bun scripts/capture-helius.ts"
+    "helius:capture": "bun scripts/capture-helius.ts",
+    "live:shadow": "bun scripts/run-live.ts --mode shadow",
+    "live": "bun scripts/run-live.ts --mode live",
+    "admin:halt": "bun scripts/admin/halt.ts halt",
+    "admin:resume": "bun scripts/admin/halt.ts resume",
+    "admin:fund-hot": "bun scripts/admin/fund-hot.ts"
   },
   "dependencies": {
+    "@jup-ag/api": "^6.0.48",
+    "@solana/spl-token": "^0.4.14",
     "@solana/web3.js": "^1.98.4",
-    "helius-sdk": "^2.2.2"
+    "@triton-one/yellowstone-grpc": "^5.0.8",
+    "helius-sdk": "^2.2.2",
+    "jito-ts": "^4.2.1",
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/bun": "latest",

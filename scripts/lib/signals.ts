@@ -7,8 +7,9 @@
  * Reference: docs/research.md sections 2-4.
  */
 
-import { STABLE_MINTS } from "./dexes.ts";
+import { STABLE_MINTS, WSOL } from "./dexes.ts";
 import type { ExitReason, MintEnrichment, PoolEvent, Position, PriceSnap } from "./types.ts";
+import type { StrategyConfig } from "./config.ts";
 
 export interface SignalDecision {
   ok: boolean;
@@ -61,7 +62,10 @@ export function e3MintSanity(ctx: EntryContext): SignalDecision {
   const m = ctx.enrichment.mintAuthority;
   const f = ctx.enrichment.freezeAuthority;
   if (m === null && f === null) return { ok: true, reason: "E3 authorities-null" };
-  return { ok: false, reason: `E3 mintAuthority=${m ? "set" : "null"} freezeAuthority=${f ? "set" : "null"}` };
+  return {
+    ok: false,
+    reason: `E3 mintAuthority=${m ? "set" : "null"} freezeAuthority=${f ? "set" : "null"}`,
+  };
 }
 
 /** E4 — LP burned/locked heuristic. */
@@ -101,10 +105,7 @@ export function e6DeployerRep(
  *  *other* mint in the pool is the quote, which capture stripped from
  *  `tokens`. We approximate by checking that *some* non-stable token
  *  exists (else the pool is stable-stable which we don't want). */
-export function e7QuoteWhitelist(
-  ctx: EntryContext,
-  allowed: Set<string>,
-): SignalDecision {
+export function e7QuoteWhitelist(ctx: EntryContext, allowed: Set<string>): SignalDecision {
   // A pool with both legs in stables would have tokens=[]; reject.
   const baseMint = ctx.pool.tokens.find((t) => !STABLE_MINTS.has(t));
   if (!baseMint) return { ok: false, reason: "E7 no-base-token" };
@@ -281,6 +282,10 @@ export interface Strategy {
   exit: ExitConfig;
   /** Position size in SOL. Function lets S4 size on event SOL. */
   sizeSol: (pool: PoolEvent) => number;
+  maxSlippageBps?: number;
+  maxFeeLamports?: number;
+  maxSimultaneousPositions?: number;
+  enabled?: boolean;
 }
 
 const QUOTE_WHITELIST = new Set([
@@ -298,7 +303,7 @@ const BASE_EXIT: ExitConfig = {
   ],
   trailPct: 0.25,
   holdSec: 30 * 60,
-  stopPct: -0.30,
+  stopPct: -0.3,
   drainPct: 0.5,
   decayN: 5,
 };
@@ -390,3 +395,54 @@ export const STRATEGIES: Strategy[] = [
 export const STRATEGY_BY_ID: Record<string, Strategy> = Object.fromEntries(
   STRATEGIES.map((s) => [s.id, s]),
 );
+
+/** Build Strategy objects from YAML-loaded StrategyConfig entries. */
+export function strategiesFromConfig(configs: StrategyConfig[]): Strategy[] {
+  return configs.map((cfg): Strategy => {
+    const quoteMints = cfg.allowedQuoteMints ? new Set(cfg.allowedQuoteMints) : new Set([WSOL]);
+
+    const entry: EntryConfig = {
+      minSol: cfg.minSol,
+      allowedTypes: cfg.allowedTypes as EntryConfig["allowedTypes"],
+      requireMintSanity: cfg.requireMintSanity,
+      requireGraduation: cfg.requireGraduation,
+      maxDeployerPriorLaunches: cfg.maxDeployerPriorLaunches,
+      allowedQuoteMints: quoteMints,
+    };
+
+    const exit: ExitConfig = {
+      ladderRungs: cfg.exit.ladderRungs,
+      trailPct: cfg.exit.trailPct,
+      holdSec: cfg.exit.holdSec,
+      stopPct: cfg.exit.stopPct,
+      drainPct: cfg.exit.drainPct,
+      decayN: cfg.exit.decayN,
+    };
+
+    const tiers = cfg.sizeByLiquidity;
+    let sizeSol: (pool: PoolEvent) => number;
+    if (tiers && tiers.length > 0) {
+      const sorted = [...tiers].sort((a, b) => b.minSol - a.minSol);
+      sizeSol = (pool: PoolEvent) => {
+        for (const tier of sorted) {
+          if (pool.solValue >= tier.minSol) return tier.size;
+        }
+        return cfg.sizeSol;
+      };
+    } else {
+      const flat = cfg.sizeSol;
+      sizeSol = (_pool: PoolEvent) => flat;
+    }
+
+    return {
+      id: cfg.id,
+      entry,
+      exit,
+      sizeSol,
+      maxSlippageBps: cfg.maxSlippageBps,
+      maxFeeLamports: cfg.maxFeeLamports,
+      maxSimultaneousPositions: cfg.maxSimultaneousPositions,
+      enabled: cfg.enabled,
+    };
+  });
+}

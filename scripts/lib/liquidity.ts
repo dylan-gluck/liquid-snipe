@@ -22,10 +22,7 @@ export interface Liquidity {
   programAccounts: string[];
 }
 
-export function computeLiquidity(
-  tx: ParsedTransactionWithMeta,
-  programId: string,
-): Liquidity {
+export function computeLiquidity(tx: ParsedTransactionWithMeta, programId: string): Liquidity {
   const preWsol = new Map<number, number>();
   for (const b of tx.meta?.preTokenBalances ?? []) {
     if (b.mint === WSOL) preWsol.set(b.accountIndex, Number(b.uiTokenAmount.uiAmount ?? 0));

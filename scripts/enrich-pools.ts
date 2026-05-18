@@ -240,9 +240,7 @@ async function main() {
 
   await Promise.all(Array.from({ length: concurrency }, () => worker()));
 
-  console.log(
-    `[${ts()}] done: enriched=${processed} skipped=${skipped} errors=${errors.length}`,
-  );
+  console.log(`[${ts()}] done: enriched=${processed} skipped=${skipped} errors=${errors.length}`);
   for (const err of errors.slice(0, 5)) console.error(`  ${err}`);
 }
 

@@ -24,6 +24,10 @@ export interface PoolEvent {
   signer: string | null;
   /** Accounts written to by the program, useful for later pool-reserve reads. */
   programAccounts: string[];
+  /** Epoch ms when the event was first observed (for latency telemetry). */
+  detectedAt?: number;
+  /** Source that first saw this event: "ws" | "grpc". */
+  detectedBy?: "ws" | "grpc";
 }
 
 /** Periodic snapshot of a pool's reserves — data/prices.jsonl. */
@@ -113,4 +117,97 @@ export interface Position {
   realisedFrac: number;
   /** Cumulative realised SOL from partials. */
   realisedSol: number;
+}
+
+// ─── Live-runtime types (Phase 0+) ────────────────────────────────
+
+/** A decision to enter a trade, routed to TxEngine. */
+export interface TradePlan {
+  attemptId: string;
+  traceId: string;
+  strategyId: string;
+  mint: string;
+  pool: string;
+  dexKey: string;
+  sizeSol: number;
+  maxSlippageBps: number;
+  computeUnitLimit: number;
+  priorityFeeMicroLamports: number;
+  exitConfig: {
+    ladderRungs?: Array<{ profit: number; sell: number }>;
+    trailPct?: number;
+    holdSec?: number;
+    stopPct?: number;
+    drainPct?: number;
+    decayN?: number;
+  };
+  /** "entry" or "exit_partial" or "exit_full" */
+  kind: "entry" | "exit_partial" | "exit_full";
+  /** For exits: the position ID being closed. */
+  positionId?: string;
+  /** Input mint for the swap (WSOL for entries, token mint for exits). */
+  inputMint: string;
+  /** Output mint for the swap. */
+  outputMint: string;
+  createdAt: number;
+}
+
+/** Result of a transaction attempt. */
+export interface TxAttempt {
+  id: string;
+  positionId: string;
+  kind: "entry" | "exit_partial" | "exit_full";
+  sig: string | null;
+  slot: number | null;
+  leader: string | null;
+  feeLamports: number;
+  cuPrice: number;
+  cuUsed: number | null;
+  status: "pending" | "shadow" | "simulated" | "submitted" | "confirmed" | "failed" | "reverted";
+  error: string | null;
+  simLogsJson: string | null;
+  createdAt: string;
+  traceId: string;
+}
+
+/** Safety check result. */
+export interface SafetyVerdict {
+  pass: boolean;
+  checks: Array<{
+    name: string;
+    pass: boolean;
+    reason: string;
+    durationMs: number;
+  }>;
+  totalDurationMs: number;
+  enrichment: MintEnrichment | null;
+}
+
+/** Risk guard state for the day. */
+export interface RiskState {
+  date: string;
+  pnlSol: number;
+  simFailures: number;
+  lastReset: string;
+}
+
+/** Decision engine output. */
+export interface DecisionOutcome {
+  fire: boolean;
+  strategyId: string;
+  plan: TradePlan | null;
+  reasons: string[];
+  blocked?: string;
+}
+
+/** Live position extending the backtest Position with DB fields. */
+export interface LivePosition extends Position {
+  id: string;
+  pool: string;
+  state: "open" | "closing" | "closed";
+  openedAt: string;
+  closedAt: string | null;
+  closeReason: string | null;
+  closeSig: string | null;
+  traceId: string;
 }

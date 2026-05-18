@@ -136,10 +136,8 @@ async function main() {
     ),
   );
 
-  const stats: Record<
-    string,
-    { seen: number; captured: number; dropped: number; errors: number }
-  > = {};
+  const stats: Record<string, { seen: number; captured: number; dropped: number; errors: number }> =
+    {};
   for (const d of args.selected) stats[d.key] = { seen: 0, captured: 0, dropped: 0, errors: 0 };
 
   const seenSigs = new Set<string>();
@@ -178,12 +176,15 @@ async function main() {
       for (let attempt = 0; attempt < 3 && !tx; attempt++) {
         try {
           // kit returns the parsed envelope directly thanks to wrapAutoSend.
-          const result = (await helius.raw.getTransaction(value.signature as Signature, {
-            encoding: "jsonParsed",
-            maxSupportedTransactionVersion: 0,
-            commitment: "confirmed",
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any)) as unknown as KitTxLike | null;
+          const result = (await helius.raw.getTransaction(
+            value.signature as Signature,
+            {
+              encoding: "jsonParsed",
+              maxSupportedTransactionVersion: 0,
+              commitment: "confirmed",
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } as any,
+          )) as unknown as KitTxLike | null;
           if (result) tx = result;
         } catch {
           if (attempt === 2) dexStats.errors++;
@@ -231,9 +232,7 @@ async function main() {
         const tokStr = tokens[0]
           ? color(args.useColor, ANSI.white, `tok=${shortKey(tokens[0])}`)
           : color(args.useColor, ANSI.dim, "tok=?");
-        const signerStr = signer
-          ? color(args.useColor, ANSI.dim, `by=${shortKey(signer)}`)
-          : "";
+        const signerStr = signer ? color(args.useColor, ANSI.dim, `by=${shortKey(signer)}`) : "";
         const sigStr = color(args.useColor, ANSI.dim, `https://solscan.io/tx/${value.signature}`);
         console.log(`${t}  ${dexLabel} ${typeLabel} ${value2}  ${tokStr}  ${signerStr}  ${sigStr}`);
       }
@@ -264,11 +263,7 @@ async function main() {
             dexStats.errors++;
             if (!args.quiet) {
               console.error(
-                color(
-                  args.useColor,
-                  ANSI.red,
-                  `[${ts()}] ${dex.key} handler: ${err.message}`,
-                ),
+                color(args.useColor, ANSI.red, `[${ts()}] ${dex.key} handler: ${err.message}`),
               );
             }
           });

@@ -136,11 +136,7 @@ export function computeLiquidityKit(tx: KitTxLike, programId: string): Liquidity
 
   const firstKey = tx.transaction.message.accountKeys[0];
   const signer =
-    firstKey === undefined
-      ? null
-      : typeof firstKey === "string"
-        ? firstKey
-        : firstKey.pubkey;
+    firstKey === undefined ? null : typeof firstKey === "string" ? firstKey : firstKey.pubkey;
   return {
     sol: Math.max(wsolFlow, nativeSol),
     tokens: [...tokenMints],

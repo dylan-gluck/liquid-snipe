@@ -40,7 +40,11 @@ function printPoolHeader(pool: PoolEvent, useColor: boolean): void {
   console.log(
     color(useColor, ANSI.bold, `${pool.dexKey.padEnd(16)}`) +
       ` ${pool.eventType.padEnd(8)} ${pool.solValue.toFixed(2).padStart(7)} SOL  ` +
-      color(useColor, ANSI.dim, `tok=${shortKey(pickMint(pool))}  by=${shortKey(pool.signer)}  sig=${shortKey(pool.txSignature)}`),
+      color(
+        useColor,
+        ANSI.dim,
+        `tok=${shortKey(pickMint(pool))}  by=${shortKey(pool.signer)}  sig=${shortKey(pool.txSignature)}`,
+      ),
   );
 }
 
@@ -52,9 +56,7 @@ function evaluatePool(
   useColor: boolean,
 ): void {
   printPoolHeader(pool, useColor);
-  const strategies = filterId
-    ? STRATEGIES.filter((s) => s.id === filterId)
-    : STRATEGIES;
+  const strategies = filterId ? STRATEGIES.filter((s) => s.id === filterId) : STRATEGIES;
   for (const strat of strategies) {
     const ctx = { pool, enrichment, blocklist };
     const result = evaluateEntry(ctx, strat.entry);
@@ -67,9 +69,7 @@ function evaluatePool(
     );
     for (const r of result.reasons) {
       const ok = result.fired.includes(r);
-      console.log(
-        color(useColor, ok ? ANSI.green : ANSI.dim, `      ${ok ? "✓" : "·"} ${r}`),
-      );
+      console.log(color(useColor, ok ? ANSI.green : ANSI.dim, `      ${ok ? "✓" : "·"} ${r}`));
     }
   }
   console.log("");

@@ -136,7 +136,7 @@ function runPosition(
     const last = series[series.length - 1] ?? entrySnap;
     const slippage =
       applySlippage && last.quoteReserve > 0
-        ? Math.min(0.2, ((pos.size * (1 - pos.realisedFrac))) / (last.quoteReserve + 1e-9))
+        ? Math.min(0.2, (pos.size * (1 - pos.realisedFrac)) / (last.quoteReserve + 1e-9))
         : 0;
     const fillPrice = last.priceQuotePerBase * (1 - slippage);
     pos.realisedSol += pos.tokenAmount * fillPrice;
@@ -241,7 +241,9 @@ async function main() {
   const positionFloor = getFloat(argv, "--position-floor", 0);
 
   if (cfg.strategyFilter && !STRATEGY_BY_ID[cfg.strategyFilter]) {
-    console.error(`Unknown strategy ${cfg.strategyFilter}. Known: ${STRATEGIES.map((s) => s.id).join(", ")}`);
+    console.error(
+      `Unknown strategy ${cfg.strategyFilter}. Known: ${STRATEGIES.map((s) => s.id).join(", ")}`,
+    );
     process.exit(1);
   }
 
@@ -294,9 +296,7 @@ async function main() {
   // runs to replace stale rows.
   if (existsSync(cfg.tradesOut)) unlinkSync(cfg.tradesOut);
 
-  const strategies = cfg.strategyFilter
-    ? [STRATEGY_BY_ID[cfg.strategyFilter]!]
-    : STRATEGIES;
+  const strategies = cfg.strategyFilter ? [STRATEGY_BY_ID[cfg.strategyFilter]!] : STRATEGIES;
 
   for (const strat of strategies) {
     const report: StratReport = { trades: [] };

@@ -141,7 +141,11 @@ function main(): void {
   console.log(`| std-dev return | ${asPct(winner.std)} |`);
   console.log(`| max drawdown   | ${asPct(winner.drawdown)} |`);
   console.log(`| avg hold       | ${(winner.avgHoldSec / 60).toFixed(1)} min |`);
-  console.log(`| exit mix       | ${Object.entries(winner.exits).map(([k, v]) => `${k}:${v}`).join(", ")} |`);
+  console.log(
+    `| exit mix       | ${Object.entries(winner.exits)
+      .map(([k, v]) => `${k}:${v}`)
+      .join(", ")} |`,
+  );
   console.log(`\n**All strategies ranked by score:**\n`);
   console.log(`| strategy | score | n | hit | pnl | mean | worst | dd |`);
   console.log(`|----------|-------|---|-----|-----|------|-------|----|`);

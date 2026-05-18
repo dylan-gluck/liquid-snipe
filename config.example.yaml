@@ -1,0 +1,157 @@
+# liquid-snipe production config
+# Copy to config.yaml or config.local.yaml and fill in secrets.
+# Supports ${ENV_VAR} interpolation in string values.
+
+rpc:
+  heliusApiKey: "${HELIUS_API_KEY}"
+  httpUrls:
+    - "https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}"
+  wsUrl: "wss://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}"
+  grpcUrl: "" # Yellowstone gRPC endpoint (LaserStream)
+  grpcToken: "${GRPC_TOKEN}"
+  commitment: "confirmed"
+  maxSlotLag: 5
+
+wallet:
+  keypairPaths: []
+  # - "./keys/hot-1.json"
+  # - "./keys/hot-2.json"
+  minBalanceSol: 0.05
+
+strategies:
+  - id: "S1-pumpfun-grad"
+    enabled: false
+    minSol: 5
+    requireMintSanity: false
+    requireGraduation: true
+    sizeSol: 0.5
+    maxSlippageBps: 300
+    maxFeeLamports: 50000
+    maxSimultaneousPositions: 3
+    exit:
+      ladderRungs:
+        - { profit: 0.5, sell: 0.5 }
+        - { profit: 1.0, sell: 0.25 }
+        - { profit: 2.0, sell: 0.25 }
+      trailPct: 0.2
+      holdSec: 900
+      stopPct: -0.30
+      drainPct: 0.5
+      decayN: 5
+
+  - id: "S2-meteora-dlmm-size"
+    enabled: true
+    minSol: 25
+    allowedTypes: ["INIT", "DEPOSIT"]
+    requireMintSanity: true
+    sizeSol: 1.0
+    maxSlippageBps: 250
+    maxFeeLamports: 100000
+    maxSimultaneousPositions: 2
+    exit:
+      ladderRungs:
+        - { profit: 0.5, sell: 0.5 }
+        - { profit: 1.0, sell: 0.25 }
+        - { profit: 2.0, sell: 0.25 }
+      trailPct: 0.25
+      holdSec: 3600
+      stopPct: -0.35
+      drainPct: 0.5
+      decayN: 5
+
+  - id: "S3-raydium-fresh-pool"
+    enabled: true
+    minSol: 5
+    allowedTypes: ["INIT"]
+    requireMintSanity: true
+    sizeSol: 0.5
+    maxSlippageBps: 250
+    maxFeeLamports: 100000
+    maxSimultaneousPositions: 3
+    exit:
+      ladderRungs:
+        - { profit: 0.5, sell: 0.5 }
+        - { profit: 1.0, sell: 0.25 }
+        - { profit: 2.0, sell: 0.25 }
+      trailPct: 0.25
+      holdSec: 1800
+      stopPct: -0.30
+      drainPct: 0.5
+      decayN: 5
+
+  - id: "S4-tiered-multidex"
+    enabled: true
+    minSol: 1
+    requireMintSanity: true
+    sizeSol: 0.5
+    sizeByLiquidity:
+      - { minSol: 0, size: 0.1 }
+      - { minSol: 5, size: 0.5 }
+      - { minSol: 25, size: 1.0 }
+    maxSlippageBps: 250
+    maxFeeLamports: 100000
+    maxSimultaneousPositions: 5
+    exit:
+      ladderRungs:
+        - { profit: 0.5, sell: 0.5 }
+        - { profit: 1.0, sell: 0.25 }
+        - { profit: 2.0, sell: 0.25 }
+      trailPct: 0.25
+      holdSec: 2700
+      stopPct: -0.30
+      drainPct: 0.5
+      decayN: 5
+
+  - id: "S5-fast-trail"
+    enabled: true
+    minSol: 0.5
+    requireMintSanity: true
+    sizeSol: 0.5
+    sizeByLiquidity:
+      - { minSol: 0, size: 0.1 }
+      - { minSol: 5, size: 0.5 }
+      - { minSol: 25, size: 1.0 }
+    maxSlippageBps: 200
+    maxFeeLamports: 75000
+    maxSimultaneousPositions: 5
+    exit:
+      ladderRungs:
+        - { profit: 0.1, sell: 0.5 }
+        - { profit: 0.25, sell: 0.25 }
+        - { profit: 0.5, sell: 0.25 }
+      trailPct: 0.08
+      holdSec: 300
+      stopPct: -0.15
+      drainPct: 0.5
+      decayN: 4
+
+risk:
+  dailyMaxLossSol: 5
+  maxSimFailures: 3
+  maxRpcErrorRate: 0.05
+  maxSlotLag: 5
+  perBlockCapSol: 2
+
+alerts:
+  enabled: false
+  webhookUrl: ""
+
+killswitch:
+  hmacSecret: "${KILLSWITCH_SECRET}"
+  haltFilePath: "data/HALT"
+
+database:
+  path: "data/liquid-snipe.db"
+
+metrics:
+  port: 9090
+  enabled: true
+
+jito:
+  blockEngineUrl: "https://mainnet.block-engine.jito.wtf"
+  tipLamports: 10000
+  enabled: true
+
+jupiter:
+  apiUrl: "https://quote-api.jup.ag/v6"
+  maxPriceImpactPct: 5

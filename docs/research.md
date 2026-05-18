@@ -13,16 +13,16 @@ PumpSwap) and tags each tx as `INIT`, `DEPOSIT`, `CREATE`, or `MIGRATE`. From
 the user's session logs across ~50 minutes of public-mainnet sampling at
 `--min-sol 1`:
 
-| program        | seen   | reported≥1 SOL | notes                                   |
-|----------------|--------|----------------|-----------------------------------------|
-| raydium-amm    | ~9000  | 1–2            | majority dropped (concurrency=4)        |
-| pumpfun        | ~2700  | 0              | log volume highest, signal density low  |
-| meteora-dlmm   | ~1000  | 0–1            | one 50 SOL DEPOSIT — largest single hit |
-| meteora-damm-v2| ~130   | 0–1            | one 11 SOL INIT                          |
-| pumpswap       | ~170   | 0              | bursts after pump.fun graduations       |
-| raydium-cpmm   | ~640   | 0              | low traffic                              |
-| raydium-clmm   | ~50    | 0              | low traffic                              |
-| orca-whirlpool | ~10    | 0              | basically silent                         |
+| program         | seen  | reported≥1 SOL | notes                                   |
+| --------------- | ----- | -------------- | --------------------------------------- |
+| raydium-amm     | ~9000 | 1–2            | majority dropped (concurrency=4)        |
+| pumpfun         | ~2700 | 0              | log volume highest, signal density low  |
+| meteora-dlmm    | ~1000 | 0–1            | one 50 SOL DEPOSIT — largest single hit |
+| meteora-damm-v2 | ~130  | 0–1            | one 11 SOL INIT                         |
+| pumpswap        | ~170  | 0              | bursts after pump.fun graduations       |
+| raydium-cpmm    | ~640  | 0              | low traffic                             |
+| raydium-clmm    | ~50   | 0              | low traffic                             |
+| orca-whirlpool  | ~10   | 0              | basically silent                        |
 
 Observations that drive the strategy design:
 
@@ -40,16 +40,16 @@ Observations that drive the strategy design:
 
 Each entry signal is a pure function `(pool, enrichment) => {ok, reason}`.
 
-| id  | name                       | rule (default threshold)                          |
-|-----|----------------------------|---------------------------------------------------|
-| E1  | first-liquidity            | event is INIT, or first DEPOSIT to an unseen pool |
-| E2  | size-gate                  | event SOL ≥ minSol (per-strategy override)        |
-| E3  | mint sanity                | mintAuthority == null, freezeAuthority == null    |
-| E4  | LP locked/burned           | ≥ 95 % of LP tokens at burn address or locker      |
-| E5  | graduation                 | source = pump.fun MIGRATE, age ≤ 60s              |
-| E6  | deployer reputation        | deployer not in `data/blocklist.json`, has ≥ 1 prior non-rug or zero history |
-| E7  | quote-token whitelist      | pool quote ∈ {WSOL, USDC, USDT}                   |
-| E8  | no concurrent dev dump     | deployer sold ≤ X % in tx-block ± K slots         |
+| id  | name                   | rule (default threshold)                                                     |
+| --- | ---------------------- | ---------------------------------------------------------------------------- |
+| E1  | first-liquidity        | event is INIT, or first DEPOSIT to an unseen pool                            |
+| E2  | size-gate              | event SOL ≥ minSol (per-strategy override)                                   |
+| E3  | mint sanity            | mintAuthority == null, freezeAuthority == null                               |
+| E4  | LP locked/burned       | ≥ 95 % of LP tokens at burn address or locker                                |
+| E5  | graduation             | source = pump.fun MIGRATE, age ≤ 60s                                         |
+| E6  | deployer reputation    | deployer not in `data/blocklist.json`, has ≥ 1 prior non-rug or zero history |
+| E7  | quote-token whitelist  | pool quote ∈ {WSOL, USDC, USDT}                                              |
+| E8  | no concurrent dev dump | deployer sold ≤ X % in tx-block ± K slots                                    |
 
 Cost of each check:
 
@@ -65,15 +65,15 @@ deployer history.
 
 ## 3. Exit signals (OR-combined, first to fire wins)
 
-| id  | name              | rule                                                              |
-|-----|-------------------|-------------------------------------------------------------------|
-| X1  | take-profit ladder| sell 50 % @ +50 %, 25 % @ +100 %, 25 % runner                     |
-| X2  | trailing stop     | drop from peak ≥ trailPct (default 25 %)                          |
-| X3  | time stop         | exit after holdSec (default 30 min) if no other exit              |
-| X4  | hard stop loss    | exit at ≤ −stopPct (default 30 %)                                 |
-| X5  | liquidity drain   | pool SOL ≤ drainPct × baseline SOL (default 50 %)                 |
-| X6  | dev/insider sell  | top-N holder (deployer or known insider) sells ≥ insiderPct (10 %)|
-| X7  | momentum decay    | N consecutive 1-min samples with non-positive return + low volume |
+| id  | name               | rule                                                               |
+| --- | ------------------ | ------------------------------------------------------------------ |
+| X1  | take-profit ladder | sell 50 % @ +50 %, 25 % @ +100 %, 25 % runner                      |
+| X2  | trailing stop      | drop from peak ≥ trailPct (default 25 %)                           |
+| X3  | time stop          | exit after holdSec (default 30 min) if no other exit               |
+| X4  | hard stop loss     | exit at ≤ −stopPct (default 30 %)                                  |
+| X5  | liquidity drain    | pool SOL ≤ drainPct × baseline SOL (default 50 %)                  |
+| X6  | dev/insider sell   | top-N holder (deployer or known insider) sells ≥ insiderPct (10 %) |
+| X7  | momentum decay     | N consecutive 1-min samples with non-positive return + low volume  |
 
 X1, X2, X3, X4 require only price-series snapshots — cheap. X5 requires
 ongoing pool-reserve sampling (we already need this for price). X6 needs
@@ -88,21 +88,21 @@ Each profile picks an entry-rule set and an exit-rule set. Implemented in
 ### S1 — Pump.fun graduation sniper
 
 - Entry: E1 ∧ E2(minSol=5) ∧ E5 ∧ E7
-- Exit:  X1 ∨ X2(20 %) ∨ X3(15 min) ∨ X4(30 %)
+- Exit: X1 ∨ X2(20 %) ∨ X3(15 min) ∨ X4(30 %)
 - Thesis: graduations have already cleared the pump.fun bonding curve
   (~$15k cap floor), so the floor risk is bounded. Fast TP / tight trail.
 
 ### S2 — Meteora DLMM size-gate
 
 - Entry: E1 ∧ E2(minSol=25) ∧ E3 ∧ E7
-- Exit:  X2(25 %) ∨ X3(60 min) ∨ X4(35 %) ∨ X5(50 %)
+- Exit: X2(25 %) ∨ X3(60 min) ∨ X4(35 %) ∨ X5(50 %)
 - Thesis: the 50 SOL DLMM deposit observed in the user's log is the model
   trade. Larger initial liquidity = lower slippage, slower decay.
 
 ### S3 — Raydium AMM v4 fresh-pool
 
 - Entry: E1(INIT only) ∧ E2(minSol=5) ∧ E3 ∧ E7
-- Exit:  X1 ∨ X2(25 %) ∨ X3(30 min) ∨ X4(30 %)
+- Exit: X1 ∨ X2(25 %) ∨ X3(30 min) ∨ X4(30 %)
 - Thesis: classic "new pool" trade. Highest-volume program; requires the
   strictest sanity filtering because rug rate is highest here too.
 
@@ -112,7 +112,7 @@ Each profile picks an entry-rule set and an exit-rule set. Implemented in
   - 1 – 5 SOL pool → 0.1 SOL test buy
   - 5 – 25 SOL pool → 0.5 SOL standard
   - 25 + SOL pool → 1.0 SOL conviction
-- Exit:  X1 ∨ X2(25 %) ∨ X3(45 min) ∨ X4(30 %) ∨ X5(50 %)
+- Exit: X1 ∨ X2(25 %) ∨ X3(45 min) ∨ X4(30 %) ∨ X5(50 %)
 - Thesis: small bets often, scaled by initial-liquidity signal. The
   per-tier sizing is the main hedge against rugs.
 
@@ -123,12 +123,12 @@ Each backtest reads `data/pools.jsonl` + `data/prices.jsonl` +
 sample after entry-signal fire (≈ next slot). Slippage and gas modelled as
 flat constants for the POC.
 
-| id  | name                    | inputs                                  |
-|-----|-------------------------|-----------------------------------------|
-| B1  | buy-and-hold baseline   | E1∧E2 entry, X3-only exit (30/60/120 min) — establishes return floor |
-| B2  | trailing-stop only      | strategy entry + X2 + X3 fallback        |
-| B3  | ladder + trail          | strategy entry + X1 + X2 + X3 fallback   |
-| B4  | strategy bake-off       | S1, S2, S3, S4 each under B3 exits — primary deliverable |
+| id  | name                  | inputs                                                               |
+| --- | --------------------- | -------------------------------------------------------------------- |
+| B1  | buy-and-hold baseline | E1∧E2 entry, X3-only exit (30/60/120 min) — establishes return floor |
+| B2  | trailing-stop only    | strategy entry + X2 + X3 fallback                                    |
+| B3  | ladder + trail        | strategy entry + X1 + X2 + X3 fallback                               |
+| B4  | strategy bake-off     | S1, S2, S3, S4 each under B3 exits — primary deliverable             |
 
 Reported metrics per run:
 

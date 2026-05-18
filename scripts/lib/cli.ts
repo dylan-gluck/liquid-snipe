@@ -35,12 +35,8 @@ export interface RpcArgs {
 export function parseRpcArgs(argv: string[]): RpcArgs {
   // Priority: --rpc flag > SOLANA_RPC_HTTP_URL > Helius (if key present) > public mainnet-beta.
   const heliusKey = loadApiKey();
-  const heliusHttp = heliusKey
-    ? `https://mainnet.helius-rpc.com/?api-key=${heliusKey}`
-    : undefined;
-  const heliusWs = heliusKey
-    ? `wss://mainnet.helius-rpc.com/?api-key=${heliusKey}`
-    : undefined;
+  const heliusHttp = heliusKey ? `https://mainnet.helius-rpc.com/?api-key=${heliusKey}` : undefined;
+  const heliusWs = heliusKey ? `wss://mainnet.helius-rpc.com/?api-key=${heliusKey}` : undefined;
   const rpc =
     getFlag(argv, "--rpc") ||
     process.env.SOLANA_RPC_HTTP_URL ||

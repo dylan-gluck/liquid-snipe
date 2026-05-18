@@ -192,7 +192,11 @@ async function main() {
         if (!tx) {
           if (args.raw) {
             console.log(
-              color(args.useColor, ANSI.red, `[${ts()}] ${dex.key} ${signature} tx not visible yet`),
+              color(
+                args.useColor,
+                ANSI.red,
+                `[${ts()}] ${dex.key} ${signature} tx not visible yet`,
+              ),
             );
           }
           return;
